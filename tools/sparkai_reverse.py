@@ -25,6 +25,10 @@ from typing import Any, Iterable
 
 PORTS = {letter: index for index, letter in enumerate("ABCDEFGH")}
 PORT_LETTERS = {index: letter for letter, index in PORTS.items()}
+REMOTE_BUTTONS = {"up", "down", "left", "right", "Y", "A", "B", "X", "L1", "R1"}
+REMOTE_BUTTON_STATES = {"press", "unpress"}
+REMOTE_ROCKERS = {"left", "right"}
+REMOTE_AXES = {"x", "y"}
 AUTO_SLEEP = 0.001
 VARIABLE_MAPPING_MARKER = "@sparkai-variable"
 LIST_MAPPING_MARKER = "@sparkai-list"
@@ -531,6 +535,32 @@ class SparkAIReverseCompiler:
                 f"does not use Spark AI's motor slider"
             )
 
+        def remote_button(owner: str) -> None:
+            value = entry(owner, "PORT")
+            if (
+                value[0] != 1
+                or not isinstance(value[1], str)
+                or value[1] not in blocks
+                or blocks[value[1]].get("opcode") != "handShank_menu"
+            ):
+                raise ReverseCodeError(
+                    "generated remote-controller button block must use a handShank menu"
+                )
+            button = blocks[value[1]].get("fields", {}).get("HAND_SHANK", [""])[0]
+            state = blocks[owner].get("fields", {}).get("BUTTON", [""])[0]
+            if button not in REMOTE_BUTTONS or state not in REMOTE_BUTTON_STATES:
+                raise ReverseCodeError(
+                    "generated remote-controller button block has an invalid button or state"
+                )
+
+        def remote_axis(owner: str) -> None:
+            rocker = blocks[owner].get("fields", {}).get("KEYS", [""])[0]
+            axis = blocks[owner].get("fields", {}).get("BUTTON", [""])[0]
+            if rocker not in REMOTE_ROCKERS or axis not in REMOTE_AXES:
+                raise ReverseCodeError(
+                    "generated remote-controller rocker block has an invalid rocker or axis"
+                )
+
         for block_id, block in blocks.items():
             opcode = block.get("opcode")
             if opcode == "combined_linepatrol_ltr":
@@ -571,6 +601,10 @@ class SparkAIReverseCompiler:
             }:
                 slider(block_id, "POWER_ONE")
                 slider(block_id, "POWER_TWO")
+            elif opcode == "sensing_isHandling":
+                remote_button(block_id)
+            elif opcode == "sensing_Handling":
+                remote_axis(block_id)
 
     def prepare_customs(self, tree: ast.Module) -> None:
         nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
@@ -1111,6 +1145,37 @@ class SparkAIReverseCompiler:
         child = self.builder.new(opcode, parent, shadow=True)
         self.builder.field(child, "MOTOR" if motor else "SENSING_MENU", letter)
         return child
+
+    def remote_button_menu(self, node: ast.AST, parent: str) -> str:
+        button = self.string_literal(node)
+        if button not in REMOTE_BUTTONS:
+            options = ", ".join(sorted(REMOTE_BUTTONS))
+            raise self.fail(f"remote button must be one of: {options}", node)
+        child = self.builder.new("handShank_menu", parent, shadow=True)
+        self.builder.field(child, "HAND_SHANK", button)
+        return child
+
+    def remote_key_expression(self, node: ast.Call, parent: str) -> str:
+        args = self.require_args(node, "_key.key_remote", 2)
+        selector = self.string_literal(args[1])
+        if selector in REMOTE_BUTTON_STATES:
+            block = self.builder.new("sensing_isHandling", parent)
+            button = self.remote_button_menu(args[0], block)
+            self.builder.input_ref(block, "PORT", button)
+            self.builder.field(block, "BUTTON", selector)
+            return block
+        if selector in REMOTE_AXES:
+            rocker = self.string_literal(args[0])
+            if rocker not in REMOTE_ROCKERS:
+                raise self.fail('remote rocker must be "left" or "right"', args[0])
+            block = self.builder.new("sensing_Handling", parent)
+            self.builder.field(block, "KEYS", rocker)
+            self.builder.field(block, "BUTTON", selector)
+            return block
+        raise self.fail(
+            '_key.key_remote second argument must be "press", "unpress", "x", or "y"',
+            args[1],
+        )
 
     def matrix_coordinate_input(self, owner: str, name: str, node: ast.AST, axis: str) -> str:
         value = _constant(node, f"matrix {axis} coordinate must be a literal")
@@ -1767,6 +1832,8 @@ class SparkAIReverseCompiler:
             self.builder.field(block, "KEYS", self.string_literal(args[0]))
             self.builder.field(block, "BUTTON", self.literal_number(args[1]))
             return block
+        if path == "_key.key_remote":
+            return self.remote_key_expression(node, parent)
         if path in sensor_specs:
             opcode, count, _ = sensor_specs[path]
             args = self.require_args(node, path, count)

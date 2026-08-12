@@ -229,6 +229,7 @@ main program stack under the Spark AI start block.
 ## Examples
 
 - `examples/line_follower.py`: line-following car with variables and lists.
+- `examples/remote_control_car.py`: handheld-controller remote-control car.
 - `examples/variables_and_lists.py`: variable/list operations.
 - `examples/custom_blocks.py`: custom block definition and call.
 - `examples/all_blocks_no_threshold.py`: broader regression sample.
@@ -241,7 +242,8 @@ The currently supported set includes:
   and line patrol.
 - Single motor power, timed movement, stop, brake/coast mode and reset degree.
 - Reflected light, grayscale state, ultrasonic value/comparison, touch/key state
-  and built-in runtime values such as timer and sound intensity.
+  handheld-controller buttons/rocker axes and built-in runtime values such as
+  timer and sound intensity.
 - Matrix display, clear, scroll text, brightness and single-pixel brightness.
 - Built-in buzzer play note and stop.
 - `if`, `if/else`, `while True`, `while not`, `for count in range(...)`.
@@ -268,7 +270,7 @@ expected process when adding support for new Spark AI blocks.
 AI generation rules are kept in [docs/ai_rules](docs/ai_rules). They are
 designed to be injected by a backend when calling an AI API; the model will not
 read these local files by itself. The rules include a compact hardware overview,
-supported function list and output protocol.
+block semantics, supported function list and output protocol.
 
 ## License
 

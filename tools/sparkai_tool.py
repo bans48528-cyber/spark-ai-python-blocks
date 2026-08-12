@@ -22,9 +22,21 @@ from pathlib import Path
 from typing import Any, Iterable
 
 try:
-    from .sparkai_reverse import _clean_runtime_sleeps, compile_project, unique_output_path
+    from .sparkai_reverse import (
+        REMOTE_AXES,
+        REMOTE_BUTTON_STATES,
+        _clean_runtime_sleeps,
+        compile_project,
+        unique_output_path,
+    )
 except ImportError:
-    from sparkai_reverse import _clean_runtime_sleeps, compile_project, unique_output_path
+    from sparkai_reverse import (
+        REMOTE_AXES,
+        REMOTE_BUTTON_STATES,
+        _clean_runtime_sleeps,
+        compile_project,
+        unique_output_path,
+    )
 
 
 PORTS = {letter: index for index, letter in enumerate("ABCDEFGH")}
@@ -426,10 +438,14 @@ class PythonGenerator:
             keys = field(block, "KEYS", "left")
             button = field(block, "BUTTON", "1")
             return f'_key.key_mast("{keys}", {button})'
-        if opcode == "sensing_mainIsPress":
-            keys = field(block, "KEYS", "left")
-            button = field(block, "BUTTON", "1")
-            return f'_key.key_mast("{keys}", {button})'
+        if opcode == "sensing_isHandling":
+            button = self.input_value(block, "PORT", '"up"').strip('"\'')
+            state = field(block, "BUTTON", "press")
+            return f'_key.key_remote("{button}", "{state}")'
+        if opcode == "sensing_Handling":
+            rocker = field(block, "KEYS", "left")
+            axis = field(block, "BUTTON", "x")
+            return f'_key.key_remote("{rocker}", "{axis}")'
         if opcode == "sensing_timer":
             return "_os.timer()"
         if opcode == "sensing_sound_intensity":
@@ -506,6 +522,20 @@ class PythonGenerator:
             return f'_ultrasion.cmp_value({port}, "{judgment}", {value})'
         if opcode == "sensing_key_judgment":
             return f"_touch.state({self.port_input(block, 'PORT')})"
+        if opcode == "sensing_mainIsPress":
+            keys = field(block, "KEYS", "left")
+            button = field(block, "BUTTON", "1")
+            return f'_key.key_mast("{keys}", {button})'
+        if opcode == "sensing_isHandling":
+            button = self.input_value(block, "PORT", '"up"').strip('"\'')
+            state = field(block, "BUTTON", "press")
+            if state in REMOTE_BUTTON_STATES:
+                return f'_key.key_remote("{button}", "{state}")'
+        if opcode == "sensing_Handling":
+            rocker = field(block, "KEYS", "left")
+            axis = field(block, "BUTTON", "x")
+            if axis in REMOTE_AXES:
+                return f'_key.key_remote("{rocker}", "{axis}")'
         if opcode in {"operator_gt", "operator_lt", "operator_equals", "operator_and", "operator_or", "operator_not"}:
             return self.value_code(block_id)
         return self.value_code(block_id)

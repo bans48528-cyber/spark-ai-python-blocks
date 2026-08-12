@@ -22,6 +22,7 @@ examples/
 docs/ai_rules/
   ai_generation_rules.md    compact rules injected into AI generation requests
   hardware_overview.md      compact hardware model and default port conventions
+  block_semantics.md        natural-language intent to Spark AI block mapping
   supported_functions.md    compact function list for AI generation
   prompt_templates.md       backend prompt assembly examples
 ```
@@ -172,6 +173,7 @@ For the first version, keep context assembly simple:
 
 - include `ai_generation_rules.md` on every AI request
 - include `hardware_overview.md` on every AI request
+- include `block_semantics.md` on every AI request
 - include `supported_functions.md` on every code-generation or repair request
 - include a compact project-state summary instead of unbounded raw chat history
 - optionally include one short example when useful

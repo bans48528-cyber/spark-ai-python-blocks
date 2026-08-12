@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 AI_RULE_FILES = (
     ROOT / "docs" / "ai_rules" / "ai_generation_rules.md",
     ROOT / "docs" / "ai_rules" / "hardware_overview.md",
+    ROOT / "docs" / "ai_rules" / "block_semantics.md",
     ROOT / "docs" / "ai_rules" / "supported_functions.md",
 )
 DEFAULT_BASE_URL = "https://api.deepseek.com"

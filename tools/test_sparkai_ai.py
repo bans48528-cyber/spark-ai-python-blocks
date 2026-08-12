@@ -24,7 +24,9 @@ class SparkAITests(unittest.TestCase):
         self.assertIn("ai_generation_rules.md", prompt)
         self.assertIn("hardware_overview.md", prompt)
         self.assertIn("supported_functions.md", prompt)
+        self.assertIn("block_semantics.md", prompt)
         self.assertIn("_motor.mov_find_line_run", prompt)
+        self.assertIn("_key.key_remote", prompt)
         self.assertIn("A=0", prompt)
 
     def test_generation_prompt_contains_state_summary_and_request(self):

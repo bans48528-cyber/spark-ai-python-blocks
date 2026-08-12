@@ -90,6 +90,24 @@ drive(50, _key.key_mast("left", 1))
         self.assertIsNotNone(call)
         self.assertEqual(call.get("proccode"), "drive power %n enabled %b")
 
+    def test_remote_controller_clipboard_uses_handle_blocks(self):
+        source = """_motor.pair(4, 5, 1)
+while True:
+    if _key.key_remote("up", "press"):
+        _motor.mov_power(60, 60)
+    else:
+        _motor.mov_stop()
+    _matrix.show_roll(str(_key.key_remote("left", "x")))
+    _os.sleep_s(0.001)
+"""
+        result = compile_clipboard(source)
+        self.assertEqual(len(result.fragments), 1)
+        xml = result.fragments[0].xml
+        self.assertIn('type="sensing_isHandling"', xml)
+        self.assertIn('type="handShank_menu"', xml)
+        self.assertIn('type="sensing_Handling"', xml)
+        self.assertNotIn('type="sensing_mainIsPress"', xml)
+
 
 if __name__ == "__main__":
     unittest.main()

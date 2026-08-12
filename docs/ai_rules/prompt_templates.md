@@ -8,8 +8,8 @@ shown to end users.
 System/developer content:
 
 ```text
-Read and follow ai_generation_rules.md, hardware_overview.md and
-supported_functions.md.
+Read and follow ai_generation_rules.md, hardware_overview.md,
+block_semantics.md and supported_functions.md.
 Return JSON only.
 ```
 
@@ -47,8 +47,8 @@ Expected response:
 System/developer content:
 
 ```text
-Read and follow ai_generation_rules.md, hardware_overview.md and
-supported_functions.md.
+Read and follow ai_generation_rules.md, hardware_overview.md,
+block_semantics.md and supported_functions.md.
 Return JSON only.
 You are repairing code that failed local converter validation.
 ```
@@ -92,11 +92,12 @@ Keep this simple at first:
 
 - Always include `ai_generation_rules.md`.
 - Always include `hardware_overview.md`.
+- Always include `block_semantics.md`.
 - Always include `supported_functions.md`.
 - Include at most one short example only if needed.
 - Do not include the full raw chat history after it becomes long.
 - Maintain a compact project-state JSON with selected ports, behavior choices
   and the latest accepted code version.
 
-For a short multi-turn session, including the two rule files directly should be
+For a short multi-turn session, including the rule files directly should be
 well within common model context limits.

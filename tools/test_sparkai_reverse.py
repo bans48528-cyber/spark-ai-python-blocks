@@ -244,6 +244,68 @@ _motor.reset_relative_position(6)
             self.assertIn("_motor.run_power(6,50)", generated.code)
             self.assertIn("_motor.run_for_power_seconds(7, 50, 1)", generated.code)
 
+    def test_remote_controller_buttons_and_rocker_compile(self):
+        source = """_motor.pair(4,5,1)
+while True:
+    if _key.key_remote("up", "press"):
+        _motor.mov_power(60, 60)
+    elif _key.key_remote("down", "press"):
+        _motor.mov_power(-40, -40)
+    elif _key.key_remote("left", "press"):
+        _motor.mov_power(-30, 30)
+    elif _key.key_remote("right", "press"):
+        _motor.mov_power(30, -30)
+    else:
+        _motor.mov_stop()
+    _matrix.show_roll(str(_key.key_remote("left", "x")))
+    _os.sleep_s(0.001)
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "remote-controller.sparkai"
+            compile_project(source, TEMPLATE, output)
+            project = load_project(output)
+            sprite = sprite_targets(project)[0]
+            blocks = sprite["blocks"]
+            opcodes = {block.get("opcode") for block in blocks.values()}
+            self.assertIn("sensing_isHandling", opcodes)
+            self.assertIn("handShank_menu", opcodes)
+            self.assertIn("sensing_Handling", opcodes)
+            self.assertNotIn("sensing_mainIsPress", opcodes)
+
+            button_blocks = [
+                block for block in blocks.values()
+                if block.get("opcode") == "sensing_isHandling"
+            ]
+            observed = set()
+            for block in button_blocks:
+                menu = blocks[block["inputs"]["PORT"][1]]
+                observed.add((menu["fields"]["HAND_SHANK"][0], block["fields"]["BUTTON"][0]))
+            self.assertTrue({
+                ("up", "press"),
+                ("down", "press"),
+                ("left", "press"),
+                ("right", "press"),
+            }.issubset(observed))
+
+            generated = PythonGenerator(sprite).generate()
+            self.assertEqual(generated.unsupported, [])
+            self.assertIn('_key.key_remote("up", "press")', generated.code)
+            self.assertIn('_key.key_remote("left", "x")', generated.code)
+
+    def test_remote_controller_rejects_invalid_combinations(self):
+        sources = (
+            '_key.key_remote("center", "press")\n',
+            '_key.key_remote("up", "z")\n',
+            '_key.key_remote("up", "x")\n',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for index, source in enumerate(sources):
+                with self.subTest(source=source):
+                    output = Path(directory) / f"invalid-remote-{index}.sparkai"
+                    with self.assertRaises(ReverseCodeError):
+                        compile_project(source, TEMPLATE, output)
+                    self.assertFalse(output.exists())
+
     def test_line_patrol_sensor_inputs_are_numeric_value_inputs(self):
         source = """_motor.mov_find_line_run(0, 1, 80, 80, 0.1, 0.6)
 """

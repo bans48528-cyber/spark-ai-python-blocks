@@ -24,6 +24,10 @@ supported by this converter.
   it.
 - Do not use sound/music functions other than `_beep.play_muic(...)` and
   `_beep.stop()`.
+- Do not confuse main-unit buttons with the handheld controller. If the user
+  asks for a remote-control car, controller, handle, gamepad, joystick, "遥控",
+  "手柄", "遥控器" or "摇杆", use the handheld-controller functions described in
+  `block_semantics.md` and `supported_functions.md`.
 - Generate complete Python code, including variable/list initializers and
   `global` declarations when variables or lists are used.
 - The generated code must be acceptable to `SparkAIReverseCompiler().compile`.
@@ -151,6 +155,8 @@ Ask a question when these are missing and the request depends on them:
 - whether to use buzzer or matrix display
 - line-following sensor arrangement
 - speed/power/time values when they affect behavior
+- whether "remote control" should use controller buttons or joystick axes when
+  the request does not say
 
 Reasonable defaults may be used only when the user asks for a quick demo:
 
@@ -159,6 +165,8 @@ Reasonable defaults may be used only when the user asks for a quick demo:
 - stop touch sensor: A, represented by `_touch.state(0)`
 - max power: 80
 - base power: 45
+- remote-control car: motors E/F, controller up/down/left/right buttons, stop
+  when no direction button is pressed
 
 List assumptions in the JSON `assumptions` field.
 

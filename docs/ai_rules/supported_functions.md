@@ -60,7 +60,18 @@ Touch/key:
 ```python
 _touch.state(port)
 _key.key_mast("left" | "right", 1)
+_key.key_remote("up" | "down" | "left" | "right" | "Y" | "A" | "B" | "X" | "L1" | "R1", "press" | "unpress")
+_key.key_remote("left" | "right", "x" | "y")
 ```
+
+`_key.key_mast(...)` is the main-unit button block. It is not a handheld
+controller block.
+
+`_key.key_remote(button, "press" | "unpress")` is a handheld controller button
+boolean reporter.
+
+`_key.key_remote("left" | "right", "x" | "y")` is a handheld controller rocker
+axis numeric reporter.
 
 Ultrasonic:
 
@@ -184,4 +195,26 @@ while not (_touch.state(0)):
 
 _motor.mov_stop()
 _beep.play_muic("c", 0.25)
+```
+
+## Good Remote-Control Car Pattern
+
+When the user asks for a remote-control car, prefer the handheld controller,
+not the main-unit left/right buttons:
+
+```python
+_motor.pair(4, 5, 1)
+
+while True:
+    if _key.key_remote("up", "press"):
+        _motor.mov_power(60, 60)
+    elif _key.key_remote("down", "press"):
+        _motor.mov_power(-45, -45)
+    elif _key.key_remote("left", "press"):
+        _motor.mov_power(-35, 35)
+    elif _key.key_remote("right", "press"):
+        _motor.mov_power(35, -35)
+    else:
+        _motor.mov_stop()
+    _os.sleep_s(0.001)
 ```
