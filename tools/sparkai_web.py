@@ -111,6 +111,7 @@ def render_clipboard_result(fragments: list[ClipboardFragment] | None) -> str:
         )
     return (
         '<section class="clipboard-result"><h2>剪贴板 XML</h2>'
+        '<p class="hint">剪贴板 XML 只用于快速粘贴观察。需要保存、分享或重新打开时，请使用生成积木文件。</p>'
         + "".join(items)
         + '<p id="copy-status" class="copy-status" aria-live="polite"></p></section>'
     )
@@ -223,7 +224,7 @@ def page(
     <header>
       <div>
         <h1>Spark AI Python 转积木</h1>
-        <p>和 AI 对话生成代码，或直接粘贴 Spark AI Python 生成 XML / .sparkai</p>
+        <p>和 AI 对话生成代码，或直接粘贴 Spark AI Python 生成可打开的 .sparkai 文件</p>
       </div>
       <p>{html.escape(api_key_hint)}</p>
     </header>
@@ -263,8 +264,8 @@ def page(
               <input id="filename" name="filename" value="" placeholder="自动生成时间文件名.sparkai" maxlength="80">
             </div>
             <div class="actions">
-              <button type="submit" name="action" value="clipboard" class="secondary">生成剪贴板 XML</button>
               <button type="submit" name="action" value="file">生成积木文件</button>
+              <button type="submit" name="action" value="clipboard" class="secondary">生成剪贴板 XML</button>
             </div>
           </div>
         </form>

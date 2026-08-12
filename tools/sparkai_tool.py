@@ -27,6 +27,7 @@ try:
         REMOTE_BUTTON_STATES,
         _clean_runtime_sleeps,
         compile_project,
+        project_extensions_for_blocks,
         unique_output_path,
     )
 except ImportError:
@@ -35,6 +36,7 @@ except ImportError:
         REMOTE_BUTTON_STATES,
         _clean_runtime_sleeps,
         compile_project,
+        project_extensions_for_blocks,
         unique_output_path,
     )
 
@@ -798,10 +800,54 @@ def project_summary(project: ProjectData) -> dict[str, Any]:
 def validate_project(project: ProjectData) -> list[str]:
     issues: list[str] = []
     targets = project.data.get("targets", [])
+    variable_ids = set(stage_variables(project))
+    list_ids = set(stage_lists(project))
     if not any(isinstance(target, dict) and target.get("isStage") for target in targets):
         issues.append("project has no stage target")
     if not sprite_targets(project):
         issues.append("project has no sprite target")
+    all_blocks = {
+        block_id: block
+        for target in targets
+        if isinstance(target, dict)
+        for block_id, block in get_blocks(target).items()
+    }
+    if any(
+        block.get("opcode") == "set_color_threshold_value"
+        for block in all_blocks.values()
+        if isinstance(block, dict)
+    ):
+        issues.append(
+            "project contains set_color_threshold_value; Spark AI 1.1.9 can "
+            "save this threshold block but may fail to reload the project"
+        )
+    required_extensions = project_extensions_for_blocks(all_blocks)
+    if required_extensions and project.data.get("extensions") != required_extensions:
+        issues.append(
+            "project extensions should be "
+            f"{required_extensions!r} for the generated blocks, got "
+            f"{project.data.get('extensions')!r}"
+        )
+
+    def check_variable_or_list_reference(
+        target_name: str,
+        block_id: str,
+        location: str,
+        reference: Any,
+    ) -> None:
+        if not isinstance(reference, list) or len(reference) < 3:
+            return
+        primitive_type, display_name, reference_id = reference[:3]
+        if primitive_type == 12 and str(reference_id) not in variable_ids:
+            issues.append(
+                f"{target_name}:{block_id} {location} references missing stage "
+                f"variable {reference_id} ({display_name})"
+            )
+        elif primitive_type == 13 and str(reference_id) not in list_ids:
+            issues.append(
+                f"{target_name}:{block_id} {location} references missing stage "
+                f"list {reference_id} ({display_name})"
+            )
 
     archive_entries = set(project.entries)
     for target in targets:
@@ -818,6 +864,22 @@ def validate_project(project: ProjectData) -> list[str]:
                 issues.append(f"{name}:{block_id} next references missing block {next_id}")
             if parent_id and parent_id not in ids:
                 issues.append(f"{name}:{block_id} parent references missing block {parent_id}")
+            for field_name, field_value in block.get("fields", {}).items():
+                if not isinstance(field_value, list) or len(field_value) < 2:
+                    continue
+                field_id = field_value[1]
+                if field_id is None:
+                    continue
+                if field_name == "VARIABLE" and str(field_id) not in variable_ids:
+                    issues.append(
+                        f"{name}:{block_id} field {field_name} references missing "
+                        f"stage variable {field_id} ({field_value[0]})"
+                    )
+                elif field_name == "LIST" and str(field_id) not in list_ids:
+                    issues.append(
+                        f"{name}:{block_id} field {field_name} references missing "
+                        f"stage list {field_id} ({field_value[0]})"
+                    )
             for input_name, entry in block.get("inputs", {}).items():
                 if not isinstance(entry, list):
                     issues.append(f"{name}:{block_id} input {input_name} is not an array")
@@ -825,6 +887,13 @@ def validate_project(project: ProjectData) -> list[str]:
                 for candidate in entry[1:]:
                     if isinstance(candidate, str) and candidate and candidate not in ids:
                         issues.append(f"{name}:{block_id} input {input_name} references missing block {candidate}")
+                    elif isinstance(candidate, list):
+                        check_variable_or_list_reference(
+                            name,
+                            block_id,
+                            f"input {input_name}",
+                            candidate,
+                        )
 
         for costume in target.get("costumes", []):
             asset = costume.get("md5ext") if isinstance(costume, dict) else None

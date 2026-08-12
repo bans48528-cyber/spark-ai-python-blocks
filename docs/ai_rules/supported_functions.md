@@ -43,7 +43,10 @@ _motor.mov_find_line_init()
 _motor.mov_find_line_run(left_sensor_value, right_sensor_value, left_power, right_power, kp, kd)
 ```
 
-Do not use `_color.set_color_threshold_value(...)` for now.
+Do not use `_color.set_color_threshold_value(...)`. In Spark AI 1.1.9, projects
+containing the gray-sensor threshold setting block can be saved but fail to
+reload. Use `_color.lux(port)` and `_color.lux_state(port)` inside line-follower
+logic instead.
 
 ## Sensors And Main Unit
 
@@ -182,6 +185,10 @@ a > b
 a < b
 a == b
 ```
+
+Unary negative variables or expressions are allowed by the converter, but AI
+code should prefer explicit subtraction for readability and Spark AI
+compatibility, for example `0 - BasePower_` instead of `-BasePower_`.
 
 ## Good Line Follower Pattern
 

@@ -62,19 +62,53 @@ Remote-control car:
 - controller left button: turn left
 - controller right button: turn right
 - no direction button pressed: stop
+- use `_key.key_remote(...)`, not `_key.key_mast(...)`
+- if the user mentions joystick/rocker/proportional control, use
+  `_key.key_remote("left" | "right", "x" | "y")` numeric axis reporters
 
 Line-following car:
 
 - use reflected-light sensors on A/B unless the user gives other ports
 - use `_motor.mov_find_line_run(...)`
+- feed sensor value slots with `_color.lux(0)` and `_color.lux(1)` or similar
+  numeric reporters
+- do not generate `_color.set_color_threshold_value(...)` because it is a known
+  Spark AI 1.1.9 load-failure block
 - do not use controller or main-unit buttons unless the user asks for manual
   control or a stop button
+
+Obstacle-avoidance car:
+
+- use ultrasonic distance `_ultrasion.value(port)` or
+  `_ultrasion.cmp_value(port, "<", value)`
+- default motors are E/F
+- when an obstacle is too close, stop, turn, or back up depending on the user
+  request
+
+Display or status prompt:
+
+- matrix image: `_matrix.show(...)`
+- scrolling text/value: `_matrix.show_roll(str(value))`
+- clear display: `_matrix.clear()`
+
+Sound prompt:
+
+- use the built-in buzzer with `_beep.play_muic(note, beats)`
+- stop buzzer/sounds with `_beep.stop()`
+- do not use unconfirmed music/sound APIs
 
 Button-controlled demo:
 
 - if the user says "use the host/main-unit buttons", then `_key.key_mast(...)`
   is appropriate
 - if the user just says "remote", ask or use the handheld controller default
+
+Variable/list/custom-block prompt:
+
+- preserve Chinese display names with mapping comments
+- initialize variables and lists near the top of the code
+- for custom blocks, include `# @sparkai-custom` and
+  `# @sparkai-custom-arg` comments so the visible block can be restored
 
 ## Ask When Ambiguous
 

@@ -25,6 +25,7 @@ AI_RULE_FILES = (
     ROOT / "docs" / "ai_rules" / "hardware_overview.md",
     ROOT / "docs" / "ai_rules" / "block_semantics.md",
     ROOT / "docs" / "ai_rules" / "supported_functions.md",
+    ROOT / "docs" / "ai_rules" / "supported_blocks.md",
 )
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-v4-flash"

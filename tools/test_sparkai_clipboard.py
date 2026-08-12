@@ -9,6 +9,8 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from sparkai_clipboard import compile_clipboard, compile_clipboard_fragments  # noqa: E402
 
+ALL_BLOCKS_1_1_9 = (ROOT / "examples" / "all_blocks_1_1_9.py").read_text(encoding="utf-8")
+
 
 class SparkAIClipboardTests(unittest.TestCase):
     def test_main_stack_generates_pasteable_block_xml_without_event_hat(self):
@@ -107,6 +109,62 @@ while True:
         self.assertIn('type="handShank_menu"', xml)
         self.assertIn('type="sensing_Handling"', xml)
         self.assertNotIn('type="sensing_mainIsPress"', xml)
+
+    def test_clipboard_allows_negative_variable_power(self):
+        source = """# @var BasePower_=BasePower
+BasePower_ = 45
+_motor.pair(4, 5, 1)
+while True:
+    if _key.key_remote("down", "press"):
+        _motor.mov_power(-BasePower_, -BasePower_)
+    else:
+        _motor.mov_stop()
+    _os.sleep_s(0.001)
+"""
+        result = compile_clipboard(source)
+        self.assertEqual(len(result.fragments), 1)
+        xml = result.fragments[0].xml
+        self.assertIn('type="operator_subtract"', xml)
+        self.assertIn('type="data_variable"', xml)
+        self.assertIn(">BasePower<", xml)
+        self.assertIn("clipboard-variable-", xml)
+
+    def test_clipboard_allows_unary_plus_variable_power(self):
+        source = """# @var Power_=Power
+Power_ = 0
+global Power_
+_motor.mov_power(+Power_, +Power_)
+"""
+        result = compile_clipboard(source)
+        xml = result.fragments[0].xml
+        self.assertIn('type="data_variable"', xml)
+        self.assertIn(">Power<", xml)
+        self.assertIn("clipboard-variable-", xml)
+
+    def test_comprehensive_1_1_9_sample_clipboard_fragments_compile(self):
+        result = compile_clipboard(ALL_BLOCKS_1_1_9)
+        self.assertEqual([fragment.kind for fragment in result.fragments], ["custom", "main"])
+        self.assertEqual(result.mapping_report.variables, (
+            ("Power_", "最大功率"),
+            ("BasePower_", "基础功率"),
+            ("Counter_", "运行次数"),
+        ))
+        self.assertEqual(result.mapping_report.lists, (
+            ("Speeds_", "速度列表"),
+            ("Messages_", "提示列表"),
+        ))
+
+        definition_xml = result.fragments[0].xml
+        main_xml = result.fragments[1].xml
+        self.assertIn('type="procedures_definition"', definition_xml)
+        self.assertIn('type="procedures_call"', main_xml)
+        self.assertNotIn('type="set_color_threshold_value"', main_xml)
+        self.assertIn('type="combined_linepatrol_ltr"', main_xml)
+        self.assertIn('type="sensing_isHandling"', main_xml)
+        self.assertIn('type="sensing_Handling"', main_xml)
+        self.assertIn('type="sound_PlayMusic"', main_xml)
+        self.assertIn("clipboard-variable-", main_xml)
+        self.assertIn("clipboard-list-", main_xml)
 
 
 if __name__ == "__main__":

@@ -29,6 +29,15 @@ REMOTE_BUTTONS = {"up", "down", "left", "right", "Y", "A", "B", "X", "L1", "R1"}
 REMOTE_BUTTON_STATES = {"press", "unpress"}
 REMOTE_ROCKERS = {"left", "right"}
 REMOTE_AXES = {"x", "y"}
+THRESHOLD_EXTENSION_OPCODES = {"set_color_threshold_value"}
+HANDSHANK_EXTENSION_OPCODES = {"sensing_isHandling", "sensing_Handling", "handShank_menu"}
+UNLOADABLE_FUNCTION_MESSAGES = {
+    "_color.set_color_threshold_value": (
+        "_color.set_color_threshold_value is disabled because Spark AI 1.1.9 "
+        "can save projects with this threshold block but fails to reload them; "
+        "use _motor.mov_find_line_run(...) with _color.lux(...) instead"
+    )
+}
 AUTO_SLEEP = 0.001
 VARIABLE_MAPPING_MARKER = "@sparkai-variable"
 LIST_MAPPING_MARKER = "@sparkai-list"
@@ -1230,8 +1239,25 @@ class SparkAIReverseCompiler:
         self.builder.field(child, "TEXT", value)
         return child
 
+    def unwrap_unary_plus(self, node: ast.AST) -> ast.AST:
+        while isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.UAdd):
+            node = node.operand
+        return node
+
+    def unary_value(self, node: ast.UnaryOp, parent: str) -> str:
+        if isinstance(node.op, ast.UAdd):
+            return self.expression_value(node.operand, parent)
+        try:
+            _constant(node)
+        except ReverseCodeError:
+            block = self.builder.new("operator_subtract", parent)
+            self.builder.input_literal(block, "NUM1", 0, literal_type=4)
+            self.input_value(block, "NUM2", node.operand)
+            return block
+        return self.number_value(node, parent)
+
     def input_value(self, owner: str, name: str, node: ast.AST, *, kind: int = 1, default: Any = 0) -> str:
-        node = self.unwrap_str(node)
+        node = self.unwrap_unary_plus(self.unwrap_str(node))
         if isinstance(node, ast.Name):
             if self.current_custom is not None and any(
                 argument.python_name == node.id for argument in self.current_custom.arguments
@@ -1293,6 +1319,7 @@ class SparkAIReverseCompiler:
         default: Any = 0,
         fallback_type: int = 4,
     ) -> str:
+        node = self.unwrap_unary_plus(node)
         if isinstance(node, ast.Name):
             if self.current_custom is not None and any(
                 argument.python_name == node.id for argument in self.current_custom.arguments
@@ -1329,6 +1356,7 @@ class SparkAIReverseCompiler:
     def input_slider(self, owner: str, name: str, node: ast.AST, *, default: Any = 0) -> str:
         """Serialize slots whose native Spark AI UI is a -100..100 slider."""
 
+        node = self.unwrap_unary_plus(node)
         if isinstance(node, ast.Name):
             if self.current_custom is not None and any(
                 argument.python_name == node.id for argument in self.current_custom.arguments
@@ -1375,6 +1403,7 @@ class SparkAIReverseCompiler:
         default: Any = 1,
         literal_type: int = 7,
     ) -> str:
+        node = self.unwrap_unary_plus(node)
         if isinstance(node, ast.Name):
             if self.current_custom is not None and any(
                 argument.python_name == node.id for argument in self.current_custom.arguments
@@ -1600,11 +1629,7 @@ class SparkAIReverseCompiler:
                 self.input_number(block, name, arg, default=defaults[name])
             return block
         if path == "_color.set_color_threshold_value":
-            args = self.require_args(call, path, 2)
-            block = self.builder.new("set_color_threshold_value", parent)
-            self.input_port(block, "PORT", args[0])
-            self.input_number(block, "THRESHOLD", args[1], default=500)
-            return block
+            raise self.fail(UNLOADABLE_FUNCTION_MESSAGES[path], call)
         if path == "_motor.mov_set_advance_offset":
             return self.two_number_statement(call, parent, "combined_forward_offset", path, "LEFT_OFFSET", "RIGHT_OFFSET")
         if path == "_motor.mov_set_retreat_offset":
@@ -1756,7 +1781,7 @@ class SparkAIReverseCompiler:
                 raise self.fail("boolean literals are only supported inside conditions", node)
             raise self.fail("unsupported literal type", node)
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
-            return self.number_value(node, parent)
+            return self.unary_value(node, parent)
         if isinstance(node, ast.BinOp):
             operators = {ast.Add: "operator_add", ast.Sub: "operator_subtract", ast.Mult: "operator_multiply", ast.Div: "operator_divide", ast.Mod: "operator_mod"}
             opcode = next((name for kind, name in operators.items() if isinstance(node.op, kind)), None)
@@ -1917,6 +1942,21 @@ def mapping_report_from_compiler(compiler: SparkAIReverseCompiler) -> MappingRep
     )
 
 
+def project_extensions_for_blocks(blocks: dict[str, Any]) -> list[str]:
+    """Return the Spark AI project extension list required by generated blocks."""
+
+    opcodes = {
+        block.get("opcode")
+        for block in blocks.values()
+        if isinstance(block, dict)
+    }
+    if opcodes & THRESHOLD_EXTENSION_OPCODES:
+        return ["set"]
+    if opcodes & HANDSHANK_EXTENSION_OPCODES:
+        return ["handShank"]
+    return []
+
+
 def compile_project(source: str, template: Path, output: Path) -> GeneratedProject:
     template = template.resolve()
     output = output.resolve()
@@ -1933,6 +1973,9 @@ def compile_project(source: str, template: Path, output: Path) -> GeneratedProje
         raise ValueError("template does not contain a stage target")
     sprite = next(target for target in project["targets"] if isinstance(target, dict) and not target.get("isStage"))
     sprite["blocks"] = blocks
+    required_extensions = project_extensions_for_blocks(blocks)
+    if required_extensions:
+        project["extensions"] = required_extensions
     stage["variables"] = {
         variable.variable_id: [variable.display_name, variable.initial_value]
         for variable in compiler.variables.values()

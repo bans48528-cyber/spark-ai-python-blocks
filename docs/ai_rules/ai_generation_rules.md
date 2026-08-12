@@ -18,16 +18,14 @@ supported by this converter.
 - Return structured JSON only. Do not wrap the JSON in Markdown.
 - If the user request is unclear or missing important hardware details, ask
   concise questions instead of guessing.
-- Only use functions listed in `supported_functions.md`.
-- Do not use `_color.set_color_threshold_value(...)` until that block is
-  revalidated with a Spark AI version that can load generated files containing
-  it.
+- Only use functions listed in `supported_functions.md`, and obey the block
+  status and slot-shape notes in `supported_blocks.md`.
 - Do not use sound/music functions other than `_beep.play_muic(...)` and
   `_beep.stop()`.
 - Do not confuse main-unit buttons with the handheld controller. If the user
   asks for a remote-control car, controller, handle, gamepad, joystick, "遥控",
   "手柄", "遥控器" or "摇杆", use the handheld-controller functions described in
-  `block_semantics.md` and `supported_functions.md`.
+  `block_semantics.md`, `supported_functions.md` and `supported_blocks.md`.
 - Generate complete Python code, including variable/list initializers and
   `global` declarations when variables or lists are used.
 - The generated code must be acceptable to `SparkAIReverseCompiler().compile`.

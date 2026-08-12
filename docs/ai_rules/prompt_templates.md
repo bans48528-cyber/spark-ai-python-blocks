@@ -9,7 +9,7 @@ System/developer content:
 
 ```text
 Read and follow ai_generation_rules.md, hardware_overview.md,
-block_semantics.md and supported_functions.md.
+block_semantics.md, supported_functions.md and supported_blocks.md.
 Return JSON only.
 ```
 
@@ -48,7 +48,7 @@ System/developer content:
 
 ```text
 Read and follow ai_generation_rules.md, hardware_overview.md,
-block_semantics.md and supported_functions.md.
+block_semantics.md, supported_functions.md and supported_blocks.md.
 Return JSON only.
 You are repairing code that failed local converter validation.
 ```
@@ -94,6 +94,7 @@ Keep this simple at first:
 - Always include `hardware_overview.md`.
 - Always include `block_semantics.md`.
 - Always include `supported_functions.md`.
+- Always include `supported_blocks.md`.
 - Include at most one short example only if needed.
 - Do not include the full raw chat history after it becomes long.
 - Maintain a compact project-state JSON with selected ports, behavior choices

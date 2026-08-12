@@ -82,6 +82,20 @@ The hardware has no Scratch-style stage. Do not generate stage, sprite,
 costume, coordinate or broadcast behavior unless the converter explicitly
 supports it.
 
+## Block UI Constraints
+
+Spark AI blocks have different input slot types. Do not replace one type with
+another just because the Python value is numeric.
+
+- Motor blocks use motor port dropdowns for E-H.
+- Sensor blocks use sensor port dropdowns for A-D.
+- The line-patrol run block uses ordinary number inputs for left sensor value,
+  right sensor value, powers and PID values. The sensor value inputs should
+  usually contain `_color.lux(...)` reporter blocks, not port dropdowns.
+- The handheld-controller block is not the same as the main-unit button block.
+- The gray-sensor threshold setting block is disabled for generated files
+  because Spark AI 1.1.9 saves it but fails to reload the project.
+
 ## Common Line-Following Car
 
 A typical line-following car has:
@@ -120,6 +134,37 @@ while not (_touch.state(0)):
 
 _motor.mov_stop()
 _beep.play_muic("c", 0.25)
+```
+
+Do not add `_color.set_color_threshold_value(...)` to line-following demos.
+Use the current reflected-light readings and grayscale state reporters instead.
+
+## Common Remote-Control Car
+
+A typical remote-control car has:
+
+- left motor on E
+- right motor on F
+- handheld controller direction buttons
+- optional matrix status display
+
+Default demo pattern:
+
+```python
+_motor.pair(4, 5, 1)
+
+while True:
+    if _key.key_remote("up", "press"):
+        _motor.mov_power(60, 60)
+    elif _key.key_remote("down", "press"):
+        _motor.mov_power(-45, -45)
+    elif _key.key_remote("left", "press"):
+        _motor.mov_power(-35, 35)
+    elif _key.key_remote("right", "press"):
+        _motor.mov_power(35, -35)
+    else:
+        _motor.mov_stop()
+    _os.sleep_s(0.001)
 ```
 
 ## Clarification Questions

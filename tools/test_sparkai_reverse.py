@@ -3,6 +3,7 @@ import json
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 
@@ -13,6 +14,7 @@ from sparkai_reverse import (  # noqa: E402
     ReverseCodeError,
     SparkAIReverseCompiler,
     compile_project,
+    project_extensions_for_blocks,
     unique_output_path,
 )
 from sparkai_tool import (  # noqa: E402
@@ -57,6 +59,7 @@ customFunc0(my_234, _key.key_mast("left", 1))
 customFunc1(1, _key.key_mast("right", 1))
 """
 ALL_BLOCKS_NO_THRESHOLD = (ROOT / "examples" / "all_blocks_no_threshold.py").read_text(encoding="utf-8")
+ALL_BLOCKS_1_1_9 = (ROOT / "examples" / "all_blocks_1_1_9.py").read_text(encoding="utf-8")
 TEMPLATE = ROOT / "templates" / "base.sparkai"
 
 
@@ -93,6 +96,95 @@ class SparkAIReverseTests(unittest.TestCase):
             self.assertIn('str("Spark AI").find(str("AI")) > -1', generated.code)
             ast.parse(generated.code)
             self.assertEqual(result.block_count, len(sprite["blocks"]))
+
+    def test_comprehensive_1_1_9_sample_loads_and_round_trips(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "all-blocks-1.1.9.sparkai"
+            result = compile_project(ALL_BLOCKS_1_1_9, TEMPLATE, output)
+            project = load_project(output)
+            self.assertEqual(validate_project(project), [])
+            self.assertEqual(project.data["extensions"], ["handShank"])
+            stage = next(target for target in project.data["targets"] if target.get("isStage"))
+            sprite = sprite_targets(project)[0]
+            blocks = sprite["blocks"]
+            opcodes = {block.get("opcode") for block in blocks.values()}
+
+            expected_opcodes = {
+                "combined_linepatrol_ltr",
+                "sensing_isHandling",
+                "sensing_Handling",
+                "sensing_reflected_light_detection",
+                "sensing_reflected_light_judgment",
+                "sensing_ultrasonic_detection",
+                "sensing_ultrasonic_judgment",
+                "sensing_key_judgment",
+                "sensing_mainIsPress",
+                "matrix_lamp",
+                "matrix_lamp_text",
+                "matrix_lamp_set",
+                "matrix_lamp_single",
+                "sound_PlayMusic",
+                "sound_stopallsounds",
+                "data_addtolist",
+                "data_insertatlist",
+                "data_replaceitemoflist",
+                "data_deleteoflist",
+                "data_deletealloflist",
+                "data_itemoflist",
+                "data_itemnumoflist",
+                "data_lengthoflist",
+                "data_listcontainsitem",
+                "procedures_definition",
+                "procedures_call",
+                "control_if",
+                "control_if_else",
+                "control_repeat",
+                "control_repeat_until",
+                "control_forever",
+                "operator_add",
+                "operator_subtract",
+                "operator_multiply",
+                "operator_divide",
+                "operator_mod",
+                "operator_round",
+                "operator_random",
+                "operator_contains",
+                "operator_and",
+                "operator_or",
+                "operator_not",
+                "operator_gt",
+                "operator_lt",
+                "operator_equals",
+            }
+            self.assertTrue(expected_opcodes.issubset(opcodes))
+            self.assertNotIn("set_color_threshold_value", opcodes)
+            self.assertEqual(
+                stage["variables"],
+                {
+                    "variable-0001": ["最大功率", 0],
+                    "variable-0002": ["基础功率", 0],
+                    "variable-0003": ["运行次数", 0],
+                },
+            )
+            self.assertEqual(
+                stage["lists"],
+                {
+                    "list-0001": ["速度列表", []],
+                    "list-0002": ["提示列表", []],
+                },
+            )
+
+            generated = PythonGenerator(
+                sprite,
+                stage_variables(project),
+                stage_lists(project),
+            ).generate()
+            self.assertEqual(generated.unsupported, [])
+            self.assertEqual(generated.warnings, [])
+            self.assertIn('_key.key_remote("up", "press")', generated.code)
+            self.assertIn('_key.key_remote("right", "y")', generated.code)
+            ast.parse(generated.code)
+            self.assertEqual(result.block_count, len(blocks))
 
     def test_directional_distance_uses_real_dropdown_values(self):
         source = """_motor.mov_for_degrees("advance", 90, "angle")
@@ -264,6 +356,7 @@ while True:
             output = Path(directory) / "remote-controller.sparkai"
             compile_project(source, TEMPLATE, output)
             project = load_project(output)
+            self.assertEqual(project.data["extensions"], ["handShank"])
             sprite = sprite_targets(project)[0]
             blocks = sprite["blocks"]
             opcodes = {block.get("opcode") for block in blocks.values()}
@@ -291,6 +384,164 @@ while True:
             self.assertEqual(generated.unsupported, [])
             self.assertIn('_key.key_remote("up", "press")', generated.code)
             self.assertIn('_key.key_remote("left", "x")', generated.code)
+
+    def test_extension_inference_matches_spark_ai_saved_projects(self):
+        threshold_blocks = {
+            "a": {"opcode": "set_color_threshold_value"},
+            "b": {"opcode": "sensing_isHandling"},
+        }
+        remote_blocks = {
+            "a": {"opcode": "sensing_isHandling"},
+            "b": {"opcode": "handShank_menu"},
+        }
+        ordinary_blocks = {
+            "a": {"opcode": "event_whenflagclicked"},
+            "b": {"opcode": "combined_motor_startWithPower"},
+        }
+        self.assertEqual(project_extensions_for_blocks(threshold_blocks), ["set"])
+        self.assertEqual(project_extensions_for_blocks(remote_blocks), ["handShank"])
+        self.assertEqual(project_extensions_for_blocks(ordinary_blocks), [])
+
+    def test_threshold_setting_is_rejected_before_writing_output(self):
+        source = """_color.set_color_threshold_value(0, 500)
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "threshold-disabled.sparkai"
+            with self.assertRaises(ReverseCodeError) as error:
+                compile_project(source, TEMPLATE, output)
+            self.assertIn("set_color_threshold_value is disabled", str(error.exception))
+            self.assertFalse(output.exists())
+
+    def test_validate_project_flags_threshold_block_load_risk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "threshold-risk.sparkai"
+            with zipfile.ZipFile(TEMPLATE) as archive:
+                project = json.loads(archive.read("project.json").decode("utf-8"))
+                entries = [
+                    (item.filename, archive.read(item.filename))
+                    for item in archive.infolist()
+                    if item.filename != "project.json"
+                ]
+            sprite = next(target for target in project["targets"] if not target.get("isStage"))
+            sprite["blocks"] = {
+                "event": {
+                    "opcode": "event_whenflagclicked",
+                    "next": "threshold",
+                    "parent": None,
+                    "inputs": {},
+                    "fields": {},
+                    "shadow": False,
+                    "topLevel": True,
+                    "x": 760,
+                    "y": 180,
+                },
+                "threshold": {
+                    "opcode": "set_color_threshold_value",
+                    "next": None,
+                    "parent": "event",
+                    "inputs": {
+                        "PORT": [1, "port"],
+                        "THRESHOLD": [1, [4, "500"]],
+                    },
+                    "fields": {},
+                    "shadow": False,
+                    "topLevel": False,
+                },
+                "port": {
+                    "opcode": "sensing_menu",
+                    "next": None,
+                    "parent": "threshold",
+                    "inputs": {},
+                    "fields": {"SENSING_MENU": ["A", None]},
+                    "shadow": True,
+                    "topLevel": False,
+                },
+            }
+            project["extensions"] = ["set"]
+            with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr(
+                    "project.json",
+                    json.dumps(project, ensure_ascii=False, separators=(",", ":")),
+                )
+                for name, content in entries:
+                    archive.writestr(name, content)
+
+            issues = validate_project(load_project(output))
+            self.assertTrue(any("set_color_threshold_value" in issue for issue in issues))
+
+    def test_remote_controller_allows_negative_variable_power(self):
+        source = """# @var MaxPower_=MaxPower
+# @var BasePower_=BasePower
+MaxPower_ = 80
+BasePower_ = 45
+
+_motor.pair(4, 5, 1)
+
+while True:
+    if _key.key_remote("up", "press"):
+        _motor.mov_power(MaxPower_, MaxPower_)
+    elif _key.key_remote("down", "press"):
+        _motor.mov_power(-BasePower_, -BasePower_)
+    else:
+        _motor.mov_stop()
+    _os.sleep_s(0.001)
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "remote-negative-variable.sparkai"
+            result = compile_project(source, TEMPLATE, output)
+            project = load_project(output)
+            self.assertEqual(validate_project(project), [])
+            stage = next(target for target in project.data["targets"] if target.get("isStage"))
+            sprite = sprite_targets(project)[0]
+            blocks = sprite["blocks"]
+
+            self.assertEqual(result.mapping_report.variables, (("MaxPower_", "MaxPower"), ("BasePower_", "BasePower")))
+            self.assertEqual(
+                stage["variables"],
+                {
+                    "variable-0001": ["MaxPower", 0],
+                    "variable-0002": ["BasePower", 0],
+                },
+            )
+
+            subtract_blocks = [
+                block for block in blocks.values()
+                if block.get("opcode") == "operator_subtract"
+            ]
+            self.assertEqual(len(subtract_blocks), 2)
+            for block in subtract_blocks:
+                self.assertEqual(block["inputs"]["NUM1"], [1, [4, "0"]])
+                self.assertEqual(block["inputs"]["NUM2"][0], 3)
+                self.assertEqual(block["inputs"]["NUM2"][1], [12, "BasePower", "variable-0002"])
+
+            generated = PythonGenerator(sprite).generate()
+            self.assertEqual(generated.unsupported, [])
+            self.assertIn("_motor.mov_power(MaxPower, MaxPower)", generated.code)
+            self.assertIn("_motor.mov_power(0 - BasePower, 0 - BasePower)", generated.code)
+
+    def test_unary_plus_variable_is_treated_as_variable_reporter(self):
+        source = """# @var Power_=Power
+Power_ = 0
+global Power_
+_motor.mov_power(+Power_, +Power_)
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "unary-plus-variable.sparkai"
+            compile_project(source, TEMPLATE, output)
+            project = load_project(output)
+            self.assertEqual(validate_project(project), [])
+            sprite = sprite_targets(project)[0]
+            blocks = sprite["blocks"]
+            motor_block = next(
+                block
+                for block in blocks.values()
+                if block.get("opcode") == "combined_motor_startWithPower"
+            )
+            for name in ("POWER_ONE", "POWER_TWO"):
+                self.assertEqual(motor_block["inputs"][name][0], 3)
+                self.assertEqual(motor_block["inputs"][name][1], [12, "Power", "variable-0001"])
+            opcodes = {block.get("opcode") for block in blocks.values()}
+            self.assertNotIn("data_variable", opcodes)
 
     def test_remote_controller_rejects_invalid_combinations(self):
         sources = (
@@ -371,8 +622,6 @@ while True:
     def test_line_sample2_special_input_shapes(self):
         source = """_motor.mov_find_line_init()
 _motor.pair(4,5,1)
-_color.set_color_threshold_value(0, 500)
-_color.set_color_threshold_value(1, 500)
 while not (_color.lux_state(0) and _color.lux_state(1)):
     _motor.mov_find_line_run(_color.lux(0), _color.lux(1), 80 * 0.5, 80 * 0.5, 0.1, 0.6)
     _os.sleep_s(0.001)
@@ -390,19 +639,10 @@ _motor.mov_for_power_seconds(50, 50, _random.randint(1, 10))
             sprite = sprite_targets(project)[0]
             blocks = sprite["blocks"]
 
-            thresholds = [
-                block for block in blocks.values()
-                if block.get("opcode") == "set_color_threshold_value"
-            ]
-            self.assertEqual(len(thresholds), 2)
-            self.assertEqual(
-                {
-                    blocks[block["inputs"]["PORT"][1]]["fields"]["SENSING_MENU"][0]
-                    for block in thresholds
-                },
-                {"A", "B"},
+            self.assertNotIn(
+                "set_color_threshold_value",
+                {block.get("opcode") for block in blocks.values()},
             )
-            self.assertTrue(all(block["inputs"]["THRESHOLD"] == [1, [4, "500"]] for block in thresholds))
 
             pixel = next(block for block in blocks.values() if block.get("opcode") == "matrix_lamp_single")
             self.assertEqual(blocks[pixel["inputs"]["x"][1]]["opcode"], "matrix_x")

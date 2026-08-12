@@ -24,6 +24,7 @@ docs/ai_rules/
   hardware_overview.md      compact hardware model and default port conventions
   block_semantics.md        natural-language intent to Spark AI block mapping
   supported_functions.md    compact function list for AI generation
+  supported_blocks.md       block status, UI slot shapes and intent mapping
   prompt_templates.md       backend prompt assembly examples
 ```
 
@@ -40,17 +41,22 @@ Spark AI Python source
   -> statement/expression compilation
   -> Scratch 3 style block dictionary
   -> validate_generated_inputs()
-  -> .sparkai archive or clipboard XML
+  -> .sparkai archive
 ```
 
 The `.sparkai` output is a ZIP file. The compiler reads
 `templates/base.sparkai`, replaces the sprite block graph, writes stage
-variables/lists and preserves the template assets.
+variables/lists, infers required project `extensions` and preserves the
+template assets. This is the canonical output path for anything that must be
+saved, shared or reopened in Spark AI.
 
-Clipboard XML is generated from the same block dictionary. It does not include
-the start-hat block, because Spark AI's workspace paste operation expects a
-stack that can be placed under the existing start block. Custom block
-definitions are emitted as separate XML fragments before the main stack.
+Clipboard XML is an auxiliary path generated from the same block dictionary. It
+emits a single `<block>` root because Spark AI's workspace paste operation does
+not reliably accept complete `<xml>` workspace documents. The main fragment does
+not include the start-hat block, so it can be placed under the existing start
+block. Custom block definitions are emitted as separate XML fragments before the
+main stack. Clipboard XML is for quick visual inspection or temporary workspace
+pasting; do not use it as the reliability standard for saved projects.
 
 ## Important Design Rules
 
@@ -99,9 +105,27 @@ Supported forms:
 
 The compiler stores both Python names and display names in `VariableInfo` and
 `ListInfo`. The `.sparkai` writer uses the display name in stage metadata and
-block fields. Clipboard XML uses the display name in `<field>` text and remaps
-field IDs to fresh `clipboard-variable-*` / `clipboard-list-*` values for each
-generation.
+block fields.
+
+Clipboard XML remaps field IDs to temporary `clipboard-variable-*` /
+`clipboard-list-*` values so Spark AI can paste the snippets into the current
+workspace. The paste route does not reliably write stage variable/list metadata
+into saved project files, so variables/lists must be validated through direct
+`.sparkai` output.
+
+## Spark AI Version Notes
+
+Use Spark AI 1.1.9 as the current validation baseline. Spark AI 1.0.6 may fail
+to reopen projects containing some operator/variable combinations even when the
+same block structure can be created manually. Treat 1.0.6 load failures as a
+compatibility warning before changing converter behavior.
+
+Known Spark AI 1.1.9 issue: projects containing the gray-sensor threshold
+setting opcode `set_color_threshold_value` can be saved by Spark AI but fail to
+reload. The converter must reject `_color.set_color_threshold_value(...)` during
+Python-to-project generation. Keep project inspection support for this opcode so
+hand-created samples can still be diagnosed, and only re-enable generation after
+a Spark AI version is manually verified to save and reopen this block reliably.
 
 ## Custom Blocks
 
@@ -151,8 +175,9 @@ python tools\sparkai_web.py --host 127.0.0.1 --port 8765
 
 The web UI is deliberately small and uses only the Python standard library. It
 posts chat requests to `/chat`, receives a validated Python candidate, then
-posts code to `/generate` to either return clipboard XML fragments or write a
-`.sparkai` file under `generated/`.
+posts code to `/generate`. The primary action writes a `.sparkai` file under
+`generated/`; the secondary action returns clipboard XML fragments for quick
+paste inspection.
 
 ## AI Integration Notes
 
@@ -166,7 +191,7 @@ user chat
   -> backend extracts the python field
   -> SparkAIReverseCompiler validates it
   -> backend repairs or shows the code candidate
-  -> user chooses clipboard XML or .sparkai generation
+  -> user generates .sparkai, optionally copies clipboard XML for inspection
 ```
 
 For the first version, keep context assembly simple:
@@ -175,6 +200,7 @@ For the first version, keep context assembly simple:
 - include `hardware_overview.md` on every AI request
 - include `block_semantics.md` on every AI request
 - include `supported_functions.md` on every code-generation or repair request
+- include `supported_blocks.md` on every code-generation or repair request
 - include a compact project-state summary instead of unbounded raw chat history
 - optionally include one short example when useful
 

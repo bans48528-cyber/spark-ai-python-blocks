@@ -25,8 +25,11 @@ class SparkAITests(unittest.TestCase):
         self.assertIn("hardware_overview.md", prompt)
         self.assertIn("supported_functions.md", prompt)
         self.assertIn("block_semantics.md", prompt)
+        self.assertIn("supported_blocks.md", prompt)
         self.assertIn("_motor.mov_find_line_run", prompt)
         self.assertIn("_key.key_remote", prompt)
+        self.assertIn("Gray-Sensor Threshold Setting", prompt)
+        self.assertIn("Do not generate this function", prompt)
         self.assertIn("A=0", prompt)
 
     def test_generation_prompt_contains_state_summary_and_request(self):
@@ -64,6 +67,8 @@ class SparkAITests(unittest.TestCase):
         self.assertEqual(validate_sparkai_python("_motor.mov_stop()\n"), "")
         error = validate_sparkai_python("_beep.start()\n")
         self.assertIn("unsupported Spark AI function: _beep.start", error)
+        threshold_error = validate_sparkai_python("_color.set_color_threshold_value(0, 500)\n")
+        self.assertIn("set_color_threshold_value is disabled", threshold_error)
 
     def test_generate_repairs_invalid_python(self):
         bad = json.dumps({
