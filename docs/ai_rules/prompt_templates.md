@@ -1,34 +1,33 @@
-# AI Prompt Templates
+# AI 提示词模板
 
-These templates are for the local backend when calling an AI API. They are not
-shown to end users.
+这些模板供本地后端调用 AI API 时使用，不直接展示给最终用户。
 
-## Generate Code Request
+## 生成代码请求
 
-System/developer content:
+系统/开发者内容：
 
 ```text
-Read and follow ai_generation_rules.md, hardware_overview.md,
-block_semantics.md, supported_functions.md and supported_blocks.md.
-Return JSON only.
+阅读并遵守 ai_generation_rules.md、hardware_overview.md、
+block_semantics.md、supported_functions.md 和 supported_blocks.md。
+只返回 JSON。
 ```
 
-User content assembled by the backend:
+后端组装的用户内容：
 
 ```text
-Project state:
+项目状态：
 {project_state_json}
 
-Conversation summary:
+对话摘要：
 {conversation_summary}
 
-User request:
+用户最新请求：
 {latest_user_message}
 
-Generate Spark AI Python or ask clarification questions.
+生成 Spark AI Python，或提出需要澄清的问题。
 ```
 
-Expected response:
+期望响应：
 
 ```json
 {
@@ -42,63 +41,58 @@ Expected response:
 }
 ```
 
-## Repair Code Request
+## 修复代码请求
 
-System/developer content:
+系统/开发者内容：
 
 ```text
-Read and follow ai_generation_rules.md, hardware_overview.md,
-block_semantics.md, supported_functions.md and supported_blocks.md.
-Return JSON only.
-You are repairing code that failed local converter validation.
+阅读并遵守 ai_generation_rules.md、hardware_overview.md、
+block_semantics.md、supported_functions.md 和 supported_blocks.md。
+只返回 JSON。
+你正在修复一段未通过本地转换器校验的代码。
 ```
 
-User content assembled by the backend:
+后端组装的用户内容：
 
 ```text
-Original user request:
+用户原始请求：
 {original_user_request}
 
-Project state:
+项目状态：
 {project_state_json}
 
-Validation error:
+转换器校验错误：
 {converter_error}
 
-Failed Python:
+失败的 Python：
 {failed_python}
 
-Return a full corrected JSON response. Keep supported behavior and mappings.
+返回完整修正后的 JSON 响应。保持支持范围内的行为和映射关系。
 ```
 
-## Clarification Response Handling
+## 澄清响应处理
 
-If the AI returns `"type": "question"`, the backend should display
-`message` and `questions` to the user and should not call the converter.
+如果 AI 返回 `"type": "question"`，后端应向用户显示 `message` 和 `questions`，不要调用转换器。
 
-If the AI returns `"type": "code"`, the backend should extract `python` and
-run:
+如果 AI 返回 `"type": "code"`，后端应提取 `python` 字段，并运行：
 
 ```python
 SparkAIReverseCompiler().compile(python_code)
 ```
 
-If validation succeeds, show the code as a candidate version. If validation
-fails, run the repair flow up to a small fixed limit, such as 2 attempts.
+如果校验成功，将代码显示为候选版本。如果校验失败，进入修复流程，修复次数使用一个较小固定上限，例如 2 次。
 
-## Backend Context Strategy
+## 后端上下文策略
 
-Keep this simple at first:
+第一版保持简单：
 
-- Always include `ai_generation_rules.md`.
-- Always include `hardware_overview.md`.
-- Always include `block_semantics.md`.
-- Always include `supported_functions.md`.
-- Always include `supported_blocks.md`.
-- Include at most one short example only if needed.
-- Do not include the full raw chat history after it becomes long.
-- Maintain a compact project-state JSON with selected ports, behavior choices
-  and the latest accepted code version.
+- 每次都携带 `ai_generation_rules.md`。
+- 每次都携带 `hardware_overview.md`。
+- 每次都携带 `block_semantics.md`。
+- 代码生成或修复请求中携带 `supported_functions.md`。
+- 代码生成或修复请求中携带 `supported_blocks.md`。
+- 只有在确实有帮助时，最多携带一个短示例。
+- 对话变长后，不要携带完整原始聊天历史。
+- 维护一个紧凑的项目状态 JSON，记录已选择端口、行为选项和最新接受的代码版本。
 
-For a short multi-turn session, including the rule files directly should be
-well within common model context limits.
+对于较短的多轮会话，直接携带这些规则文件通常仍在常见模型上下文范围内。

@@ -1,87 +1,78 @@
-# Spark AI Supported Blocks
+# Spark AI 支持积木表
 
-This file describes the block shapes that the AI may target when writing Spark
-AI Python. Use it together with `supported_functions.md`: that file is the
-compact function list, while this file explains user intent, hardware meaning
-and input-slot shape.
+本文件描述 AI 写 Spark AI Python 时可以面向哪些积木形态。它应与 `supported_functions.md` 一起使用：`supported_functions.md` 是紧凑函数清单，本文件解释用户意图、硬件含义和输入槽形态。
 
-## Status Labels
+## 状态标签
 
-- Stable: may be generated for normal `.sparkai` output.
-- Inspect only: the project inspector may recognize it, but AI must not generate
-  it.
-- Unsupported: do not generate.
+- 稳定：可以为正常 `.sparkai` 输出生成。
+- 仅检查：项目检查器可以识别，但 AI 不得生成。
+- 不支持：不要生成。
 
-## Slot Types
+## 输入槽类型
 
-- Motor port menu: use motor ports E-H, represented as numbers 4-7.
-- Sensor port menu: use sensor ports A-D, represented as numbers 0-3.
-- Number slot: can contain a literal number, variable, list item, operator or
-  numeric reporter.
-- Motor power slider: Spark AI's motor power slot. It can contain literals,
-  variables or operators; keep values in -100 to 100 unless the user says
-  otherwise.
-- Boolean slot: can contain sensor/button comparisons or logical operators.
-- Text slot: can contain text literals, variables, list items, numeric reporters
-  wrapped by `str(...)`, or operators that produce text.
+- 电机端口菜单：使用电机端口 E-H，在 Python 中表示为数字 4-7。
+- 传感器端口菜单：使用传感器端口 A-D，在 Python 中表示为数字 0-3。
+- 数值槽：可以放数字字面量、变量、列表项、运算或数值报告器。
+- 电机功率滑条：Spark AI 的电机功率输入槽。可以放字面量、变量或运算；除非用户另有说明，值保持在 -100 到 100。
+- 布尔槽：可以放传感器/按键判断或逻辑运算。
+- 文本槽：可以放文本字面量、变量、列表项、用 `str(...)` 包裹的数值报告器，或产生文本的运算。
 
-## Motors
+## 电机
 
-### Paired Motor Setup
+### 双电机设置
 
-Status: Stable
+状态：稳定
 
-Use when the user has a two-wheel car or left/right drive motors.
+当用户使用两轮小车或左右驱动电机时使用。
 
 ```python
 _motor.pair(4, 5, 1)
 ```
 
 - `_motor.pair(left_port, right_port, pair_mode)`
-- Typical default: left motor E -> 4, right motor F -> 5, pair mode 1.
-- Inputs: two motor port menus plus a mode dropdown.
-- Do not use A-D as motor ports unless the user explicitly says the hardware is
-  wired that way and Spark AI exposes that option.
+- 默认：左电机 E -> 4，右电机 F -> 5，双电机模式 1。
+- 输入：两个电机端口菜单，加一个模式下拉。
+- 不要使用 A-D 作为电机端口，除非用户明确说明硬件这样连接，且 Spark AI 软件中确实提供这个选项。
 
-### Paired Motor Stop Mode
+### 双电机停止模式
 
-Status: Stable
+状态：稳定
 
 ```python
 _motor.mov_set_stop_module(1)
 ```
 
-- Sets brake/coast style for the paired motor stop behavior.
-- Input is a fixed mode value from Spark AI generated Python.
+- 设置双电机停止时的刹车/滑行方式。
+- 输入是 Spark AI 生成 Python 中的固定模式值。
 
-### Paired Motor Power
+### 双电机功率
 
-Status: Stable
+状态：稳定
 
 ```python
 _motor.mov_power(left_power, right_power)
 ```
 
-- Use for continuous two-motor driving.
-- Inputs are motor power sliders.
-- Positive/negative values control direction through power sign.
-- For reverse variables, prefer `0 - BasePower_` in AI code.
+- 用于双电机连续驱动。
+- 输入是电机功率滑条。
+- 正负号通过功率方向控制前进/后退。
+- 变量反向时，AI 代码优先写 `0 - BasePower_`。
 
-### Paired Motor Timed Power
+### 双电机按时间运行
 
-Status: Stable
+状态：稳定
 
 ```python
 _motor.mov_for_power_seconds(left_power, right_power, seconds)
 ```
 
-- Use for driving both motors at independent powers for a duration.
-- Power inputs are motor power sliders.
-- Duration is a number slot.
+- 让左右电机以独立功率运行指定时间。
+- 功率输入是电机功率滑条。
+- 时间输入是数值槽。
 
-### Directional Movement
+### 方向运动
 
-Status: Stable
+状态：稳定
 
 ```python
 _motor.mov_dir_power("advance", power)
@@ -89,16 +80,14 @@ _motor.mov_dir_power_seconds("retreat", power, seconds)
 _motor.mov_for_degrees("left", distance, "angle")
 ```
 
-- Directions: `"advance"`, `"retreat"`, `"left"`, `"right"`.
-- Distance units for `_motor.mov_for_degrees`: `"angle"`, `"circly"`,
-  `"seconds"`.
-- Use these blocks for beginner-friendly movement commands.
-- In the Spark AI UI, directions display as localized labels such as forward or
-  backward; Python still uses the English string values above.
+- 方向：`"advance"`、`"retreat"`、`"left"`、`"right"`。
+- `_motor.mov_for_degrees` 的单位：`"angle"`、`"circly"`、`"seconds"`。
+- 适合生成初学者容易理解的移动命令。
+- Spark AI 界面里方向可能显示为中文“前进/后退”等标签；Python 中仍使用以上英文字符串。
 
-### Paired Motor Stop And Offsets
+### 双电机停止和校准
 
-Status: Stable
+状态：稳定
 
 ```python
 _motor.mov_stop()
@@ -106,13 +95,12 @@ _motor.mov_set_advance_offset(left_offset, right_offset)
 _motor.mov_set_retreat_offset(left_offset, right_offset)
 ```
 
-- Use `_motor.mov_stop()` when no remote-control direction is pressed or after a
-  movement sequence ends.
-- Offset inputs are number slots.
+- 没有遥控方向键按下时，或运动序列结束后，使用 `_motor.mov_stop()`。
+- 校准输入是数值槽。
 
-### Single Motor
+### 单电机
 
-Status: Stable
+状态：稳定
 
 ```python
 _motor.run_power(port, power)
@@ -122,118 +110,112 @@ _motor.stop_module(port, mode)
 _motor.reset_relative_position(port)
 ```
 
-- Use for one motor on E-H.
-- Port input is a motor port menu.
-- Power input is a motor power slider.
+- 用于接在 E-H 的单个电机。
+- 端口输入是电机端口菜单。
+- 功率输入是电机功率滑条。
 
-## Line Following
+## 巡线
 
-### Line Patrol Init
+### 巡线初始化
 
-Status: Stable
+状态：稳定
 
 ```python
 _motor.mov_find_line_init()
 ```
 
-- Use once before line-following behavior.
+- 巡线逻辑开始前调用一次。
 
-### Line Patrol Run
+### 巡线运行
 
-Status: Stable
+状态：稳定
 
 ```python
 _motor.mov_find_line_run(_color.lux(0), _color.lux(1), 80, 45, 0.1, 0.6)
 ```
 
-- This is the main line-following block.
-- The left-sensor and right-sensor inputs are number slots, not port dropdowns.
-  They may contain `_color.lux(...)`, variables, list items or arithmetic.
-- Left and right power are also number slots for this block, not the single
-  motor port selector.
-- Typical sensors: A/B -> `_color.lux(0)` and `_color.lux(1)`.
-- Always keep `_os.sleep_s(0.001)` inside a repeated line-following loop.
+- 这是主要巡线积木。
+- 左传感器值和右传感器值是数值槽，不是端口下拉栏。这里可以放 `_color.lux(...)`、变量、列表项或算术表达式。
+- 左功率、右功率也是该积木的数值槽，不是单电机端口选择器。
+- 常见传感器：A/B -> `_color.lux(0)` 和 `_color.lux(1)`。
+- 重复巡线循环中应保留 `_os.sleep_s(0.001)`。
 
-### Gray-Sensor Threshold Setting
+### 灰度传感器阈值设置
 
-Status: Inspect only
+状态：仅检查
 
 ```python
 _color.set_color_threshold_value(port, threshold)
 ```
 
-- Do not generate this function.
-- Spark AI 1.1.9 can save projects containing this block, but saved projects
-  fail to reload.
-- If a user asks to set a grayscale threshold, explain that this block is
-  disabled for file reliability and use reflected-light readings or
-  `_color.lux_state(...)` instead.
+- 不要生成这个函数。
+- Spark AI 1.1.9 可以保存包含该积木的项目，但保存后的项目会加载失败。
+- 如果用户要求设置灰度阈值，应说明该积木因文件可靠性已禁用，并改用反射光读数 `_color.lux(...)` 或灰度状态 `_color.lux_state(...)`。
 
-## Sensors And Inputs
+## 传感器和输入
 
-### Reflected Light
+### 反射光
 
-Status: Stable
+状态：稳定
 
 ```python
 _color.lux(port)
 _color.cmp_lux(port, ">", value)
 ```
 
-- Port is a sensor port menu, typically A-D -> 0-3.
-- `_color.lux(port)` is a numeric reporter.
-- `_color.cmp_lux(...)` is a boolean reporter.
-- Comparison operators: `">"`, `"<"`, `"=="`, `">="`, `"<="`.
+- 端口是传感器端口菜单，通常 A-D -> 0-3。
+- `_color.lux(port)` 是数值报告器。
+- `_color.cmp_lux(...)` 是布尔报告器。
+- 比较符：`">"`、`"<"`、`"=="`、`">="`、`"<="`。
 
-### Grayscale State
+### 灰度状态
 
-Status: Stable
+状态：稳定
 
 ```python
 _color.lux_state(port)
 ```
 
-- Boolean reporter for grayscale/color sensor state.
-- Useful as a stop condition or line-detection condition.
+- 灰度/颜色传感器状态布尔报告器。
+- 可作为停止条件或巡线检测条件。
 
-### Ultrasonic
+### 超声波
 
-Status: Stable
+状态：稳定
 
 ```python
 _ultrasion.value(port)
 _ultrasion.cmp_value(port, "<", value)
 ```
 
-- Port is a sensor port menu.
-- Use for obstacle detection and distance display.
+- 端口是传感器端口菜单。
+- 用于避障和距离显示。
 
-### Touch Sensor
+### 触碰传感器
 
-Status: Stable
+状态：稳定
 
 ```python
 _touch.state(port)
 ```
 
-- Boolean reporter for an external touch sensor on A-D.
+- 外接触碰传感器布尔报告器，端口通常为 A-D。
 
-### Main Unit Buttons
+### 主机按键
 
-Status: Stable
+状态：稳定
 
 ```python
 _key.key_mast("left", 1)
 _key.key_mast("right", 1)
 ```
 
-- This means physical buttons on the Spark AI main unit.
-- Do not use it for remote-control cars unless the user explicitly says the main
-  unit buttons should control the car.
+- 表示 Spark AI 主机上的物理按键。
+- 除非用户明确要求主机按键控制小车，否则不要用于遥控小车。
 
-### Handheld Controller
+### 手柄/遥控器
 
-Status: Stable
+状态：稳定
 
 ```python
 _key.key_remote("up", "press")
@@ -243,17 +225,16 @@ _key.key_remote("right", "press")
 _key.key_remote("left", "x")
 ```
 
-- Use this for remote controller, handle, gamepad, joystick or remote-control
-  car requests.
-- Button names: `up`, `down`, `left`, `right`, `Y`, `A`, `B`, `X`, `L1`, `R1`.
-- Button states: `press`, `unpress`.
-- Rockers: `left` or `right`; axes: `x` or `y`.
+- 用于遥控器、手柄、游戏手柄、摇杆、遥控小车等需求。
+- 按键名称：`up`、`down`、`left`、`right`、`Y`、`A`、`B`、`X`、`L1`、`R1`。
+- 按键状态：`press`、`unpress`。
+- 摇杆：`left` 或 `right`；轴：`x` 或 `y`。
 
-## Main Unit Output
+## 主机输出
 
-### Matrix Display
+### 点阵屏
 
-Status: Stable
+状态：稳定
 
 ```python
 _matrix.show(0x1F, 0x11, 0x15, 0x15, 0x15, 0x11, 0x1F)
@@ -263,29 +244,27 @@ _matrix.set_pixel_brightness(2, 3, 1)
 _matrix.clear()
 ```
 
-- `_matrix.show(...)` takes seven integer row values, often hex values from
-  `0x00` to `0x1F`.
-- `_matrix.show_roll(str(value))` scrolls text or converted values.
-- Pixel x/y must be literal coordinates supported by the Spark AI matrix UI.
-- Keep display text short.
+- `_matrix.show(...)` 接收 7 个整数行值，通常是 `0x00` 到 `0x1F` 的十六进制值。
+- `_matrix.show_roll(str(value))` 滚动显示文本或转换后的值。
+- 点亮单点的 x/y 必须是 Spark AI 点阵 UI 支持的字面坐标。
+- 显示文字尽量短。
 
-### Buzzer
+### 蜂鸣器
 
-Status: Stable
+状态：稳定
 
 ```python
 _beep.play_muic("c", 0.25)
 _beep.stop()
 ```
 
-- The main unit has a buzzer and can play different notes.
-- Confirmed notes: `"c"`, `"d"`, `"e"`, `"f"`, `"g"`, `"a"`, `"b"`.
-- Do not use unconfirmed sound APIs such as `_beep.start(...)`,
-  `_beep.untildone(...)` or `_beep.setvolumeto(...)`.
+- 主机有蜂鸣器，可以播放不同音调。
+- 已确认音符：`"c"`、`"d"`、`"e"`、`"f"`、`"g"`、`"a"`、`"b"`。
+- 不要使用未确认的声音 API，例如 `_beep.start(...)`、`_beep.untildone(...)`、`_beep.setvolumeto(...)`。
 
-## Runtime Values
+## 运行时数值
 
-Status: Stable
+状态：稳定
 
 ```python
 _os.timer()
@@ -296,14 +275,13 @@ _os.stop_exit()
 _os.sleep_s(seconds)
 ```
 
-- `_os.timer()` is a numeric reporter.
-- `_os.voic()` is sound intensity.
-- `_os.sleep_s(0.001)` is commonly used inside loops as Spark AI's cooperative
-  runtime sleep.
+- `_os.timer()` 是计时器数值报告器。
+- `_os.voic()` 是声音强度。
+- `_os.sleep_s(0.001)` 常用于循环中，作为 Spark AI 的运行时协作等待。
 
-## Variables, Lists And Custom Blocks
+## 变量、列表和自制积木
 
-Status: Stable with mapping comments
+状态：稳定，需要映射注释
 
 ```python
 # @var Power_=最大功率
@@ -316,11 +294,11 @@ Power_ = 80
 Speeds_.append('50')
 ```
 
-- Variables are initialized near the top and represented in stage metadata.
-- Lists must be initialized with `PikaStdData.List()`.
-- Display names are restored from mapping comments.
+- 变量在代码顶部附近初始化，并写入舞台元数据。
+- 列表必须用 `PikaStdData.List()` 初始化。
+- 显示名称通过映射注释复原。
 
-Custom blocks:
+自制积木：
 
 ```python
 # @sparkai-custom drive => 控制小车 左功率 %n 右功率 %n 执行 %b
@@ -332,15 +310,15 @@ def drive(LeftPower_, RightPower_, Enabled_):
         _motor.mov_power(LeftPower_, RightPower_)
 ```
 
-- `%n` is a number input.
-- `%b` is a boolean input.
-- Text outside placeholders becomes fixed label text on the custom block.
+- `%n` 是数字输入项。
+- `%b` 是布尔输入项。
+- 占位符之外的文字会成为自制积木上的固定标签文本。
 
-## Control And Operators
+## 控制和运算
 
-Status: Stable
+状态：稳定
 
-Supported control shapes:
+支持的控制形态：
 
 ```python
 if condition:
@@ -358,7 +336,7 @@ for count in range(times):
     ...
 ```
 
-Supported operators:
+支持的运算：
 
 ```python
 a + b
@@ -378,5 +356,5 @@ a < b
 a == b
 ```
 
-- Keep expressions simple and block-like.
-- Avoid arbitrary Python functions, comprehensions, classes, imports or file IO.
+- 表达式应保持简单，接近积木结构。
+- 避免任意 Python 函数、推导式、类、导入、文件 IO。

@@ -162,6 +162,14 @@ class WebServerCase(unittest.TestCase):
         self.assertIn("剪贴板 XML", body)
         self.assertIn("combined_motor_stop", body)
 
+    def test_generate_page_includes_new_session_button(self):
+        with urllib.request.urlopen(self.base_url + "/generate", timeout=5) as response:
+            body = response.read().decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertIn("新建会话", body)
+        self.assertIn("CHAT_STORAGE_KEY", body)
+
 
 if __name__ == "__main__":
     unittest.main()

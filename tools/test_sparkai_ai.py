@@ -28,8 +28,8 @@ class SparkAITests(unittest.TestCase):
         self.assertIn("supported_blocks.md", prompt)
         self.assertIn("_motor.mov_find_line_run", prompt)
         self.assertIn("_key.key_remote", prompt)
-        self.assertIn("Gray-Sensor Threshold Setting", prompt)
-        self.assertIn("Do not generate this function", prompt)
+        self.assertIn("灰度传感器阈值设置", prompt)
+        self.assertIn("不要生成这个函数", prompt)
         self.assertIn("A=0", prompt)
 
     def test_generation_prompt_contains_state_summary_and_request(self):

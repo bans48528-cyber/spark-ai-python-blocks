@@ -245,6 +245,7 @@ def page(
         <div class="chat-actions">
           <span id="chat-status" class="status"></span>
           <div class="chat-buttons">
+            <button id="new-session" class="ghost" type="button">新建会话</button>
             <button id="clear-chat" class="ghost" type="button">清空对话</button>
             <button id="send-chat" type="button">发送给 AI</button>
           </div>
@@ -280,6 +281,7 @@ def page(
     const clearChat = document.getElementById('clear-chat');
     const pythonArea = document.getElementById('python');
     const apiKeyInput = document.getElementById('api-key');
+    const newSession = document.getElementById('new-session');
     const CHAT_STORAGE_KEY = 'sparkai.chatHistory.v1';
     let chatHistory = loadChatHistory();
 
@@ -364,6 +366,16 @@ def page(
       renderChatHistory();
       chatStatus.className = 'status';
       chatStatus.textContent = '对话已清空';
+    }});
+
+    newSession.addEventListener('click', () => {{
+      chatHistory = [];
+      saveChatHistory();
+      renderChatHistory();
+      chatInput.value = '';
+      pythonArea.value = '';
+      chatStatus.className = 'status';
+      chatStatus.textContent = '已开始新会话';
     }});
 
     renderChatHistory();

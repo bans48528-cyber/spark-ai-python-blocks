@@ -1,17 +1,16 @@
-# Supported Spark AI Python Summary
+# Spark AI Python 支持函数摘要
 
-This is the compact function list for AI code generation. Only use these
-functions and Python constructs unless the converter is extended.
+本文件是给 AI 生成代码使用的紧凑函数清单。除非转换器扩展，否则只使用本文件列出的函数和 Python 结构。
 
-Ports are usually numeric in generated Python:
+端口在生成的 Python 中通常使用数字：
 
 ```text
 A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7
 ```
 
-## Motors
+## 电机
 
-Paired motor setup and movement:
+双电机设置和运动：
 
 ```python
 _motor.pair(left_motor_port, right_motor_port, pair_mode)
@@ -26,7 +25,7 @@ _motor.mov_for_degrees("advance" | "retreat" | "left" | "right", distance, "angl
 _motor.mov_stop()
 ```
 
-Single motor:
+单电机：
 
 ```python
 _motor.run_power(port, power)
@@ -36,21 +35,18 @@ _motor.stop_module(port, mode)
 _motor.reset_relative_position(port)
 ```
 
-Line following:
+巡线：
 
 ```python
 _motor.mov_find_line_init()
 _motor.mov_find_line_run(left_sensor_value, right_sensor_value, left_power, right_power, kp, kd)
 ```
 
-Do not use `_color.set_color_threshold_value(...)`. In Spark AI 1.1.9, projects
-containing the gray-sensor threshold setting block can be saved but fail to
-reload. Use `_color.lux(port)` and `_color.lux_state(port)` inside line-follower
-logic instead.
+不要使用 `_color.set_color_threshold_value(...)`。在 Spark AI 1.1.9 中，包含灰度传感器阈值设置积木的项目可以保存，但重新加载会失败。巡线逻辑应使用 `_color.lux(port)` 和 `_color.lux_state(port)`。
 
-## Sensors And Main Unit
+## 传感器与主机输入
 
-Color/grayscale:
+颜色/灰度：
 
 ```python
 _color.lux(port)
@@ -58,7 +54,7 @@ _color.lux_state(port)
 _color.cmp_lux(port, ">" | "<" | "==" | ">=" | "<=", value)
 ```
 
-Touch/key:
+触碰/按键：
 
 ```python
 _touch.state(port)
@@ -67,23 +63,20 @@ _key.key_remote("up" | "down" | "left" | "right" | "Y" | "A" | "B" | "X" | "L1" 
 _key.key_remote("left" | "right", "x" | "y")
 ```
 
-`_key.key_mast(...)` is the main-unit button block. It is not a handheld
-controller block.
+`_key.key_mast(...)` 是主机按键积木，不是手柄/遥控器积木。
 
-`_key.key_remote(button, "press" | "unpress")` is a handheld controller button
-boolean reporter.
+`_key.key_remote(button, "press" | "unpress")` 是手柄按键布尔报告器。
 
-`_key.key_remote("left" | "right", "x" | "y")` is a handheld controller rocker
-axis numeric reporter.
+`_key.key_remote("left" | "right", "x" | "y")` 是手柄摇杆轴数值报告器。
 
-Ultrasonic:
+超声波：
 
 ```python
 _ultrasion.value(port)
 _ultrasion.cmp_value(port, ">" | "<" | "==" | ">=" | "<=", value)
 ```
 
-Runtime values and resets:
+运行时数值和复位：
 
 ```python
 _os.timer()
@@ -94,7 +87,7 @@ _os.stop_exit()
 _os.sleep_s(seconds)
 ```
 
-## Matrix Display
+## 点阵屏
 
 ```python
 _matrix.show(row0, row1, row2, row3, row4, row5, row6)
@@ -104,21 +97,20 @@ _matrix.set_pixel_brightness(x, y, 0 | 1)
 _matrix.clear()
 ```
 
-`_matrix.show(...)` uses seven row values, often hexadecimal.
+`_matrix.show(...)` 使用 7 个行值，通常是十六进制数。
 
-## Buzzer
+## 蜂鸣器
 
 ```python
 _beep.play_muic("c" | "d" | "e" | "f" | "g" | "a" | "b", beats)
 _beep.stop()
 ```
 
-Do not use `_beep.start`, `_beep.untildone`, `_beep.setvolumeto` or other
-unconfirmed sound blocks.
+不要使用 `_beep.start`、`_beep.untildone`、`_beep.setvolumeto` 或其它未确认的声音积木。
 
-## Variables And Lists
+## 变量和列表
 
-Variables:
+变量：
 
 ```python
 Name_ = 0
@@ -127,7 +119,7 @@ Name_ = 10
 Name_ += 1
 ```
 
-Lists:
+列表：
 
 ```python
 Items_ = PikaStdData.List()
@@ -143,9 +135,9 @@ Items_.num()
 Items_.list_if_data('text')
 ```
 
-## Control And Operators
+## 控制与运算
 
-Supported control:
+支持的控制结构：
 
 ```python
 if condition:
@@ -166,7 +158,7 @@ for count in range(times):
     ...
 ```
 
-Supported expressions:
+支持的表达式：
 
 ```python
 a + b
@@ -186,11 +178,9 @@ a < b
 a == b
 ```
 
-Unary negative variables or expressions are allowed by the converter, but AI
-code should prefer explicit subtraction for readability and Spark AI
-compatibility, for example `0 - BasePower_` instead of `-BasePower_`.
+转换器允许一元负号变量或表达式，但 AI 生成代码时优先使用显式减法，便于阅读并更接近 Spark AI 积木结构。例如优先写 `0 - BasePower_`，而不是 `-BasePower_`。
 
-## Good Line Follower Pattern
+## 推荐巡线小车模式
 
 ```python
 _motor.mov_find_line_init()
@@ -204,10 +194,9 @@ _motor.mov_stop()
 _beep.play_muic("c", 0.25)
 ```
 
-## Good Remote-Control Car Pattern
+## 推荐遥控小车模式
 
-When the user asks for a remote-control car, prefer the handheld controller,
-not the main-unit left/right buttons:
+当用户要求遥控小车时，优先使用手柄/遥控器，不要使用主机左右按键：
 
 ```python
 _motor.pair(4, 5, 1)

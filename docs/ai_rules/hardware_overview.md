@@ -1,52 +1,44 @@
-# Spark AI Hardware Overview
+# Spark AI 硬件概览
 
-This file gives the AI enough hardware context to produce sensible Spark AI
-Python. Keep it compact and include it with normal AI generation requests.
+本文件为 AI 提供必要的 Spark AI 产品形态和硬件上下文。后端在常规 AI 生成请求中应携带本文件。
 
-## Main Unit
+## 主机
 
-The Spark AI main unit is a small programmable controller used with graphical
-blocks. It can run Spark AI Python generated from blocks and control external
-hardware through ports.
+Spark AI 主机是一个小型可编程控制器。它运行由积木生成的 Spark AI Python，并通过端口控制外接硬件。
 
-Built-in capabilities known to this project:
+本项目已确认的主机内置能力：
 
-- matrix display
-- buzzer capable of playing different notes
-- buttons/keys on the main unit
-- timer
-- sound intensity value
-- yaw reset/runtime orientation function
+- 点阵屏
+- 蜂鸣器，可以播放不同音调
+- 主机上的按键
+- 计时器
+- 声音强度值
+- 偏航角/姿态相关复位函数
 
-## Controller / Remote Handle
+## 手柄 / 遥控器
 
-Spark AI also has a handheld controller/remote handle. It is a different
-physical input device from the buttons on the main unit.
+Spark AI 还可以使用手柄/遥控器。它是独立于主机按键的另一个输入设备。
 
-Use this distinction carefully:
+必须严格区分：
 
-- "main-unit buttons", "host buttons", "left/right key on the host" means the
-  built-in buttons on the main unit and uses `_key.key_mast(...)`.
-- "remote control", "controller", "handle", "gamepad", "joystick", "remote
-  car" or Chinese phrases such as "遥控", "手柄", "遥控器", "摇杆" should be
-  understood as the handheld controller and use `_key.key_remote(...)`, not
-  `_key.key_mast(...)`.
+- “主机按键”“主机左键”“主机右键”“机身按键”“host buttons”表示主机上的按键，应使用 `_key.key_mast(...)`。
+- “遥控”“遥控小车”“遥控器”“手柄”“游戏手柄”“摇杆”“remote control”“controller”“gamepad”“joystick”表示手柄/遥控器，应使用 `_key.key_remote(...)`，不要使用 `_key.key_mast(...)`。
 
-Controller button names supported by confirmed blocks:
+已确认的手柄按键名称：
 
 ```text
 up, down, left, right, Y, A, B, X, L1, R1
 ```
 
-Controller rocker values supported by confirmed blocks:
+已确认的手柄摇杆轴：
 
 ```text
 left x, left y, right x, right y
 ```
 
-## Ports
+## 端口
 
-Spark AI generated Python uses numeric port indexes:
+Spark AI Python 使用数字表示端口：
 
 ```text
 A=0
@@ -59,70 +51,63 @@ G=6
 H=7
 ```
 
-Typical interpretation:
+常见理解：
 
-- A-D are commonly used for sensors.
-- E-H are commonly used for motors.
-- Motor pair E/F is represented as `_motor.pair(4, 5, mode)`.
+- A-D 常用于传感器。
+- E-H 常用于电机。
+- E/F 双电机通常写作 `_motor.pair(4, 5, mode)`。
 
-Do not confuse motor port menus with sensor port menus. If the user says a
-motor uses E/F/G/H, use numeric ports 4/5/6/7.
+不要混淆电机端口下拉栏和传感器端口下拉栏。用户说电机接 E/F/G/H 时，应使用数字端口 4/5/6/7。
 
-## Common External Hardware
+## 常见外接硬件
 
-Commonly used parts:
+常见部件：
 
-- DC/geared motors connected to E-H.
-- Grayscale/color reflected-light sensors connected to A-D.
-- Ultrasonic sensor connected to A-D.
-- Touch sensor connected to A-D.
-- Handheld controller/remote handle for remote-control cars.
+- 接在 E-H 的直流/减速电机。
+- 接在 A-D 的灰度/颜色反射光传感器。
+- 接在 A-D 的超声波传感器。
+- 接在 A-D 的触碰传感器。
+- 用于遥控小车的手柄/遥控器。
 
-The hardware has no Scratch-style stage. Do not generate stage, sprite,
-costume, coordinate or broadcast behavior unless the converter explicitly
-supports it.
+硬件没有 Scratch 风格的舞台。不要生成舞台、角色、造型、坐标、广播等行为，除非转换器明确支持。
 
-## Block UI Constraints
+## 积木 UI 约束
 
-Spark AI blocks have different input slot types. Do not replace one type with
-another just because the Python value is numeric.
+Spark AI 积木的输入槽类型不同。不要因为 Python 值都是数字，就把一种输入槽替换成另一种。
 
-- Motor blocks use motor port dropdowns for E-H.
-- Sensor blocks use sensor port dropdowns for A-D.
-- The line-patrol run block uses ordinary number inputs for left sensor value,
-  right sensor value, powers and PID values. The sensor value inputs should
-  usually contain `_color.lux(...)` reporter blocks, not port dropdowns.
-- The handheld-controller block is not the same as the main-unit button block.
-- The gray-sensor threshold setting block is disabled for generated files
-  because Spark AI 1.1.9 saves it but fails to reload the project.
+- 电机积木的端口输入是电机端口下拉栏，通常是 E-H。
+- 传感器积木的端口输入是传感器端口下拉栏，通常是 A-D。
+- 巡线运行积木的左传感器值、右传感器值、功率、PID 参数都是普通数值输入槽。传感器值通常应放 `_color.lux(...)` 这类数值报告器，不是端口下拉栏。
+- 手柄积木不是主机按键积木。
+- 灰度传感器“阈值设为”积木在生成文件中禁用，因为 Spark AI 1.1.9 可以保存它，但重新加载项目会失败。
 
-## Common Line-Following Car
+## 常见巡线小车
 
-A typical line-following car has:
+典型巡线小车包含：
 
-- left motor on E
-- right motor on F
-- left grayscale/color sensor on A
-- right grayscale/color sensor on B
-- optional touch sensor on A-D as a stop input
-- optional buzzer sound when finished
-- optional matrix display status text
+- 左电机接 E
+- 右电机接 F
+- 左灰度/颜色传感器接 A
+- 右灰度/颜色传感器接 B
+- 可选触碰传感器作为停止输入
+- 可选蜂鸣器完成提示
+- 可选点阵屏状态显示
 
-Default demo configuration when the user explicitly asks for a quick demo:
+用户明确要求快速演示时，可使用以下默认配置：
 
 ```text
-left motor: E -> 4
-right motor: F -> 5
-pair mode: 1
-left reflected-light sensor: A -> 0
-right reflected-light sensor: B -> 1
-stop touch sensor: A -> 0
-max power: 80
-base power: 45
-line-following kp/kd: 0.1 / 0.6
+左电机：E -> 4
+右电机：F -> 5
+双电机模式：1
+左反射光传感器：A -> 0
+右反射光传感器：B -> 1
+停止触碰传感器：A -> 0
+最大功率：80
+基础功率：45
+巡线 kp/kd：0.1 / 0.6
 ```
 
-Use this pattern:
+推荐模式：
 
 ```python
 _motor.mov_find_line_init()
@@ -136,19 +121,18 @@ _motor.mov_stop()
 _beep.play_muic("c", 0.25)
 ```
 
-Do not add `_color.set_color_threshold_value(...)` to line-following demos.
-Use the current reflected-light readings and grayscale state reporters instead.
+不要给巡线演示添加 `_color.set_color_threshold_value(...)`。应使用当前反射光读数 `_color.lux(...)` 和灰度状态 `_color.lux_state(...)`。
 
-## Common Remote-Control Car
+## 常见遥控小车
 
-A typical remote-control car has:
+典型遥控小车包含：
 
-- left motor on E
-- right motor on F
-- handheld controller direction buttons
-- optional matrix status display
+- 左电机接 E
+- 右电机接 F
+- 使用手柄方向按键
+- 可选点阵屏状态显示
 
-Default demo pattern:
+默认演示模式：
 
 ```python
 _motor.pair(4, 5, 1)
@@ -167,28 +151,24 @@ while True:
     _os.sleep_s(0.001)
 ```
 
-## Clarification Questions
+## 澄清问题
 
-Ask the user before generating final code when important hardware information
-is missing and there is no clear default:
+如果关键硬件信息缺失且没有明确默认值，生成最终代码前应询问用户：
 
-- Which ports are the left and right motors connected to?
-- Which ports are the left and right grayscale/color sensors connected to?
-- Which sensor or button should stop the program?
-- If the user says "remote control", should it use the handheld controller
-  buttons or joystick axes?
-- Should the program use the buzzer, matrix display, or both?
-- What speed/power range should be used?
-- Does the program need custom blocks, variables or lists?
+- 左右电机接在哪些端口？
+- 左右灰度/颜色传感器接在哪些端口？
+- 用哪个传感器或按键停止程序？
+- 用户说“遥控”时，是用手柄方向按键还是摇杆轴？
+- 是否使用蜂鸣器、点阵屏，还是两者都用？
+- 使用什么速度/功率范围？
+- 是否需要变量、列表或自制积木？
 
-If using defaults, put them in the JSON `assumptions` field.
+如果使用默认值，必须写入 JSON 的 `assumptions` 字段。
 
-## Safety And Simplicity
+## 安全与简洁
 
-- Keep motor power in a reasonable range, commonly 0-100 or -100 to 100 when the
-  block supports reverse power.
-- Prefer stopping motors at the end of a movement or loop.
-- Use short matrix text.
-- Use simple buzzer notes and short durations.
-- Avoid indefinite full-power behavior unless the user explicitly asks for it
-  and there is a clear stop condition.
+- 电机功率保持在合理范围，通常是 0-100；支持反向时可用 -100 到 100。
+- 运动结束或循环停止时，优先停止电机。
+- 点阵屏文字尽量短。
+- 蜂鸣器使用简单音符和短时值。
+- 除非用户明确要求并给出停止条件，否则避免无限期全功率运行。
