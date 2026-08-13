@@ -79,7 +79,7 @@ Spark AI 积木的输入槽类型不同。不要因为 Python 值都是数字，
 - 传感器积木的端口输入是传感器端口下拉栏，通常是 A-D。
 - 巡线运行积木的左传感器值、右传感器值、功率、PID 参数都是普通数值输入槽。传感器值通常应放 `_color.lux(...)` 这类数值报告器，不是端口下拉栏。
 - 手柄积木不是主机按键积木。
-- 灰度传感器“阈值设为”积木在生成文件中禁用，因为 Spark AI 1.1.9 可以保存它，但重新加载项目会失败。
+- 灰度传感器“阈值设为”积木可生成，使用 `_color.set_color_threshold_value(port, threshold)`。
 
 ## 常见巡线小车
 
@@ -121,7 +121,7 @@ _motor.mov_stop()
 _beep.play_muic("c", 0.25)
 ```
 
-不要给巡线演示添加 `_color.set_color_threshold_value(...)`。应使用当前反射光读数 `_color.lux(...)` 和灰度状态 `_color.lux_state(...)`。
+用户要求设置灰度阈值时，可以在巡线逻辑前添加 `_color.set_color_threshold_value(port, threshold)`。未明确要求阈值时，优先使用当前反射光读数 `_color.lux(...)` 和灰度状态 `_color.lux_state(...)`。
 
 ## 常见遥控小车
 

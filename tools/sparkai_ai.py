@@ -22,6 +22,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 AI_RULE_FILES = (
     ROOT / "docs" / "ai_rules" / "ai_generation_rules.md",
+    ROOT / "docs" / "ai_rules" / "conversation_state.md",
     ROOT / "docs" / "ai_rules" / "hardware_overview.md",
     ROOT / "docs" / "ai_rules" / "block_semantics.md",
     ROOT / "docs" / "ai_rules" / "supported_functions.md",
@@ -29,6 +30,7 @@ AI_RULE_FILES = (
 )
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-v4-flash"
+MAX_CONVERSATION_SUMMARY_CHARS = 8_000
 
 
 class SparkAIAIError(ValueError):
@@ -72,6 +74,17 @@ def load_rule_context() -> str:
     return "\n\n---\n\n".join(parts)
 
 
+def compact_conversation_summary(summary: str, *, limit: int = MAX_CONVERSATION_SUMMARY_CHARS) -> str:
+    """Bound user-supplied chat context so old turns cannot dominate the prompt."""
+
+    clean = summary.strip()
+    if not clean:
+        return ""
+    if len(clean) <= limit:
+        return clean
+    return "[earlier conversation omitted]\n" + clean[-limit:]
+
+
 def build_system_prompt() -> str:
     return (
         "You are the AI code-generation layer for Spark AI Python to Blocks.\n"
@@ -86,17 +99,25 @@ def build_generation_user_prompt(
     project_state: str = "{}",
     conversation_summary: str = "",
 ) -> str:
+    compact_summary = compact_conversation_summary(conversation_summary)
+    current_python = ""
+    try:
+        parsed_state = json.loads(project_state.strip() or "{}")
+    except json.JSONDecodeError:
+        parsed_state = {}
+    if isinstance(parsed_state, dict) and isinstance(parsed_state.get("current_python"), str):
+        current_python = parsed_state["current_python"].strip()
     return (
         "Project state JSON:\n"
         f"{project_state.strip() or '{}'}\n\n"
         "Conversation summary:\n"
-        f"{conversation_summary.strip() or '(none)'}\n\n"
-        "If Project state JSON contains current_python, treat it as the current candidate program. "
-        "When the latest user request asks for a change, modify that candidate and return the full updated Python program, "
-        "not a patch and not only the changed lines.\n\n"
+        f"{compact_summary or '(none)'}\n\n"
         "Latest user request:\n"
         f"{user_request.strip()}\n\n"
-        "Generate Spark AI Python or ask clarification questions."
+        "Current candidate Python:\n"
+        f"{current_python or '(none)'}\n\n"
+        "Use the loaded rule files to decide whether this is a new request, a follow-up edit, "
+        "or a clarification case. Return full Spark AI Python when code is requested."
     )
 
 

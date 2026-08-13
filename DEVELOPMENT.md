@@ -120,12 +120,11 @@ to reopen projects containing some operator/variable combinations even when the
 same block structure can be created manually. Treat 1.0.6 load failures as a
 compatibility warning before changing converter behavior.
 
-Known Spark AI 1.1.9 issue: projects containing the gray-sensor threshold
-setting opcode `set_color_threshold_value` can be saved by Spark AI but fail to
-reload. The converter must reject `_color.set_color_threshold_value(...)` during
-Python-to-project generation. Keep project inspection support for this opcode so
-hand-created samples can still be diagnosed, and only re-enable generation after
-a Spark AI version is manually verified to save and reopen this block reliably.
+Spark AI 1.1.9 had a known issue where projects containing the gray-sensor
+threshold setting opcode `set_color_threshold_value` could be saved but failed
+to reload. Newer Spark AI versions support this block, so the converter now
+generates `_color.set_color_threshold_value(port, threshold)` and includes the
+required `set` extension when that opcode is present.
 
 ## Custom Blocks
 
@@ -214,9 +213,12 @@ The web endpoint is `/chat`. It accepts JSON with:
 - `conversation_summary`: compact previous chat text from the page
 - `current_python`: current candidate code, used only to summarize state
 
-The API key is not written to disk. If `api_key` is empty, the server reads
-`DEEPSEEK_API_KEY` from the private local `.env` file first, then from its
-process environment. `.env` is ignored by Git; commit only `.env.example`.
+The server does not write the API key to disk. The web page may save a user-
+entered key in browser local storage for convenience; the UI warns that this
+is risky on shared or public computers. If `api_key` is empty, the server
+reads `DEEPSEEK_API_KEY` from the private local `.env` file first, then from
+its process environment. `.env` is ignored by Git; commit only
+`.env.example`.
 
 The AI CLI smoke-test entry point is:
 

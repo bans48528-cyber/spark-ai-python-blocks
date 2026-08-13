@@ -87,8 +87,9 @@ In the web UI, you can either:
 
 After the Python candidate is ready, choose one of:
 
-- `生成积木文件`: creates a `.sparkai` file in `generated/`. Use this for
-  normal testing, saving and sharing.
+- `生成积木文件`: creates a `.sparkai` file in `generated/` and starts the
+  download automatically. The default web filename is `日-时分.sparkai`, such
+  as `13-1605.sparkai`. Use this for normal testing, saving and sharing.
 - `生成剪贴板 XML`: creates one or more XML fragments for quick copy/paste into
   the current workspace. Use it to inspect blocks or paste a stack under an
   existing start block.
@@ -98,8 +99,12 @@ complete project, and projects pasted this way may fail to reopen when they
 contain variables or lists. For any program that must reopen reliably, generate
 the `.sparkai` file instead.
 
-The AI chat uses a DeepSeek-compatible API. You can paste the API key into the
-page for the current request, or set it before starting the server:
+The AI chat uses a DeepSeek-compatible API. The optional page key settings are
+collapsed by default. A key entered there is saved in the browser's local
+storage for later use. This is convenient but risky on shared or public
+computers; do not save a real key there unless the browser profile is trusted,
+and revoke/replace a key if it is exposed. You can also set the key before
+starting the server:
 
 ```powershell
 $env:DEEPSEEK_API_KEY = "your-api-key"
@@ -261,8 +266,8 @@ The currently supported set includes:
   and line patrol.
 - Single motor power, timed movement, stop, brake/coast mode and reset degree.
 - Reflected light, grayscale state, ultrasonic value/comparison, touch/key
-  state, handheld-controller buttons/rocker axes and built-in runtime values
-  such as timer and sound intensity.
+  state, grayscale threshold setting, handheld-controller buttons/rocker axes
+  and built-in runtime values such as timer and sound intensity.
 - Matrix display, clear, scroll text, brightness and single-pixel brightness.
 - Built-in buzzer play note and stop.
 - `if`, `if/else`, `while True`, `while not`, `for count in range(...)`.
@@ -275,10 +280,8 @@ Known boundary:
 
 - Arbitrary Python is not supported. The input is the Spark AI generated
   Python dialect plus mapping comments.
-- `_color.set_color_threshold_value(...)` is intentionally disabled. Spark AI
-  1.1.9 can save projects containing the gray-sensor threshold setting block,
-  but those projects fail to reload. Use line-following logic with
-  `_color.lux(...)` / `_color.lux_state(...)` instead.
+- `_color.set_color_threshold_value(port, threshold)` is supported in newer
+  Spark AI versions for gray-sensor threshold setting.
 
 ## Development
 

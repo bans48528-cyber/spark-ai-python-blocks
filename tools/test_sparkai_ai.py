@@ -12,6 +12,7 @@ from sparkai_ai import (  # noqa: E402
     SparkAIAIError,
     build_generation_user_prompt,
     build_system_prompt,
+    compact_conversation_summary,
     generate_with_deepseek,
     parse_ai_json,
     validate_sparkai_python,
@@ -22,6 +23,7 @@ class SparkAITests(unittest.TestCase):
     def test_system_prompt_includes_rules_hardware_and_functions(self):
         prompt = build_system_prompt()
         self.assertIn("ai_generation_rules.md", prompt)
+        self.assertIn("conversation_state.md", prompt)
         self.assertIn("hardware_overview.md", prompt)
         self.assertIn("supported_functions.md", prompt)
         self.assertIn("block_semantics.md", prompt)
@@ -29,7 +31,9 @@ class SparkAITests(unittest.TestCase):
         self.assertIn("_motor.mov_find_line_run", prompt)
         self.assertIn("_key.key_remote", prompt)
         self.assertIn("灰度传感器阈值设置", prompt)
-        self.assertIn("不要生成这个函数", prompt)
+        self.assertIn("_color.set_color_threshold_value(port, threshold)", prompt)
+        self.assertNotIn("不要使用 `_color.set_color_threshold_value(...)`", prompt)
+        self.assertNotIn("不要生成这个函数", prompt)
         self.assertIn("A=0", prompt)
 
     def test_generation_prompt_contains_state_summary_and_request(self):
@@ -41,8 +45,24 @@ class SparkAITests(unittest.TestCase):
         self.assertIn("做一个巡线小车", prompt)
         self.assertIn('"left_motor":"E"', prompt)
         self.assertIn("_motor.mov_stop()", prompt)
-        self.assertIn("full updated Python program", prompt)
         self.assertIn("用户要巡线", prompt)
+        self.assertIn("Latest user request:", prompt)
+        self.assertIn("Current candidate Python:", prompt)
+        self.assertIn("Use the loaded rule files", prompt)
+
+    def test_conversation_summary_is_bounded_before_prompting(self):
+        summary = "old question\n" + ("x" * 9000) + "\nlatest answer"
+        compact = compact_conversation_summary(summary, limit=100)
+        self.assertTrue(compact.startswith("[earlier conversation omitted]"))
+        self.assertNotIn("old question", compact)
+        self.assertIn("latest answer", compact)
+
+        prompt = build_generation_user_prompt(
+            "继续",
+            conversation_summary=summary,
+        )
+        self.assertIn("[earlier conversation omitted]", prompt)
+        self.assertNotIn("old question", prompt)
 
     def test_parse_valid_code_json(self):
         response = parse_ai_json(json.dumps({
@@ -67,8 +87,7 @@ class SparkAITests(unittest.TestCase):
         self.assertEqual(validate_sparkai_python("_motor.mov_stop()\n"), "")
         error = validate_sparkai_python("_beep.start()\n")
         self.assertIn("unsupported Spark AI function: _beep.start", error)
-        threshold_error = validate_sparkai_python("_color.set_color_threshold_value(0, 500)\n")
-        self.assertIn("set_color_threshold_value is disabled", threshold_error)
+        self.assertEqual(validate_sparkai_python("_color.set_color_threshold_value(0, 500)\n"), "")
 
     def test_generate_repairs_invalid_python(self):
         bad = json.dumps({

@@ -29,15 +29,7 @@ REMOTE_BUTTONS = {"up", "down", "left", "right", "Y", "A", "B", "X", "L1", "R1"}
 REMOTE_BUTTON_STATES = {"press", "unpress"}
 REMOTE_ROCKERS = {"left", "right"}
 REMOTE_AXES = {"x", "y"}
-THRESHOLD_EXTENSION_OPCODES = {"set_color_threshold_value"}
 HANDSHANK_EXTENSION_OPCODES = {"sensing_isHandling", "sensing_Handling", "handShank_menu"}
-UNLOADABLE_FUNCTION_MESSAGES = {
-    "_color.set_color_threshold_value": (
-        "_color.set_color_threshold_value is disabled because Spark AI 1.1.9 "
-        "can save projects with this threshold block but fails to reload them; "
-        "use _motor.mov_find_line_run(...) with _color.lux(...) instead"
-    )
-}
 AUTO_SLEEP = 0.001
 VARIABLE_MAPPING_MARKER = "@sparkai-variable"
 LIST_MAPPING_MARKER = "@sparkai-list"
@@ -575,7 +567,7 @@ class SparkAIReverseCompiler:
             if opcode == "combined_linepatrol_ltr":
                 for name in ("PORT_ONE", "PORT_TWO", "LEFT", "RIGHT", "KP", "KD"):
                     plain_number(block_id, name, 4)
-            elif opcode == "set_color_threshold_value":
+            elif opcode == "sensing_set_color_threshold_value":
                 port = entry(block_id, "PORT")
                 if (
                     port[0] != 1
@@ -1629,7 +1621,11 @@ class SparkAIReverseCompiler:
                 self.input_number(block, name, arg, default=defaults[name])
             return block
         if path == "_color.set_color_threshold_value":
-            raise self.fail(UNLOADABLE_FUNCTION_MESSAGES[path], call)
+            args = self.require_args(call, path, 2)
+            block = self.builder.new("sensing_set_color_threshold_value", parent)
+            self.input_port(block, "PORT", args[0])
+            self.input_number(block, "THRESHOLD", args[1], default=500)
+            return block
         if path == "_motor.mov_set_advance_offset":
             return self.two_number_statement(call, parent, "combined_forward_offset", path, "LEFT_OFFSET", "RIGHT_OFFSET")
         if path == "_motor.mov_set_retreat_offset":
@@ -1950,8 +1946,6 @@ def project_extensions_for_blocks(blocks: dict[str, Any]) -> list[str]:
         for block in blocks.values()
         if isinstance(block, dict)
     }
-    if opcodes & THRESHOLD_EXTENSION_OPCODES:
-        return ["set"]
     if opcodes & HANDSHANK_EXTENSION_OPCODES:
         return ["handShank"]
     return []
@@ -1974,8 +1968,7 @@ def compile_project(source: str, template: Path, output: Path) -> GeneratedProje
     sprite = next(target for target in project["targets"] if isinstance(target, dict) and not target.get("isStage"))
     sprite["blocks"] = blocks
     required_extensions = project_extensions_for_blocks(blocks)
-    if required_extensions:
-        project["extensions"] = required_extensions
+    project["extensions"] = required_extensions
     stage["variables"] = {
         variable.variable_id: [variable.display_name, variable.initial_value]
         for variable in compiler.variables.values()

@@ -13,7 +13,6 @@ outputs/
 work/
 *.log
 
-.env
 .venv/
 venv/
 

@@ -387,7 +387,7 @@ while True:
 
     def test_extension_inference_matches_spark_ai_saved_projects(self):
         threshold_blocks = {
-            "a": {"opcode": "set_color_threshold_value"},
+            "a": {"opcode": "sensing_set_color_threshold_value"},
             "b": {"opcode": "sensing_isHandling"},
         }
         remote_blocks = {
@@ -398,23 +398,37 @@ while True:
             "a": {"opcode": "event_whenflagclicked"},
             "b": {"opcode": "combined_motor_startWithPower"},
         }
-        self.assertEqual(project_extensions_for_blocks(threshold_blocks), ["set"])
+        self.assertEqual(project_extensions_for_blocks(threshold_blocks), ["handShank"])
         self.assertEqual(project_extensions_for_blocks(remote_blocks), ["handShank"])
         self.assertEqual(project_extensions_for_blocks(ordinary_blocks), [])
 
-    def test_threshold_setting_is_rejected_before_writing_output(self):
-        source = """_color.set_color_threshold_value(0, 500)
+    def test_threshold_setting_generates_supported_block(self):
+        source = """_color.set_color_threshold_value(0, 1000)
 """
         with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "threshold-disabled.sparkai"
-            with self.assertRaises(ReverseCodeError) as error:
-                compile_project(source, TEMPLATE, output)
-            self.assertIn("set_color_threshold_value is disabled", str(error.exception))
-            self.assertFalse(output.exists())
+            output = Path(directory) / "threshold.sparkai"
+            compile_project(source, TEMPLATE, output)
+            project = load_project(output)
+            self.assertEqual(validate_project(project), [])
+            self.assertEqual(project.data["extensions"], [])
+            sprite = sprite_targets(project)[0]
+            blocks = sprite["blocks"]
+            threshold = next(
+                block for block in blocks.values()
+                if block.get("opcode") == "sensing_set_color_threshold_value"
+            )
+            port_id = threshold["inputs"]["PORT"][1]
+            self.assertEqual(blocks[port_id]["opcode"], "sensing_menu")
+            self.assertEqual(blocks[port_id]["fields"]["SENSING_MENU"][0], "A")
+            self.assertEqual(threshold["inputs"]["THRESHOLD"], [1, [4, "1000"]])
 
-    def test_validate_project_flags_threshold_block_load_risk(self):
+            generated = PythonGenerator(sprite).generate()
+            self.assertEqual(generated.unsupported, [])
+            self.assertIn("_color.set_color_threshold_value(0, 1000)", generated.code)
+
+    def test_validate_project_accepts_threshold_block(self):
         with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "threshold-risk.sparkai"
+            output = Path(directory) / "threshold-supported.sparkai"
             with zipfile.ZipFile(TEMPLATE) as archive:
                 project = json.loads(archive.read("project.json").decode("utf-8"))
                 entries = [
@@ -436,7 +450,7 @@ while True:
                     "y": 180,
                 },
                 "threshold": {
-                    "opcode": "set_color_threshold_value",
+                    "opcode": "sensing_set_color_threshold_value",
                     "next": None,
                     "parent": "event",
                     "inputs": {
@@ -457,7 +471,7 @@ while True:
                     "topLevel": False,
                 },
             }
-            project["extensions"] = ["set"]
+            project["extensions"] = []
             with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
                 archive.writestr(
                     "project.json",
@@ -467,7 +481,7 @@ while True:
                     archive.writestr(name, content)
 
             issues = validate_project(load_project(output))
-            self.assertTrue(any("set_color_threshold_value" in issue for issue in issues))
+            self.assertEqual(issues, [])
 
     def test_remote_controller_allows_negative_variable_power(self):
         source = """# @var MaxPower_=MaxPower

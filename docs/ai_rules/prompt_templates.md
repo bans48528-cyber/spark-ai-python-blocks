@@ -8,7 +8,8 @@
 
 ```text
 阅读并遵守 ai_generation_rules.md、hardware_overview.md、
-block_semantics.md、supported_functions.md 和 supported_blocks.md。
+conversation_state.md、block_semantics.md、supported_functions.md
+和 supported_blocks.md。
 只返回 JSON。
 ```
 
@@ -47,7 +48,8 @@ block_semantics.md、supported_functions.md 和 supported_blocks.md。
 
 ```text
 阅读并遵守 ai_generation_rules.md、hardware_overview.md、
-block_semantics.md、supported_functions.md 和 supported_blocks.md。
+conversation_state.md、block_semantics.md、supported_functions.md
+和 supported_blocks.md。
 只返回 JSON。
 你正在修复一段未通过本地转换器校验的代码。
 ```
@@ -92,7 +94,7 @@ SparkAIReverseCompiler().compile(python_code)
 - 代码生成或修复请求中携带 `supported_functions.md`。
 - 代码生成或修复请求中携带 `supported_blocks.md`。
 - 只有在确实有帮助时，最多携带一个短示例。
-- 对话变长后，不要携带完整原始聊天历史。
+- 对话变长后，不要携带完整原始聊天历史。只携带紧凑摘要或最近少量轮次，避免把 AI 旧回答和旧问题反复送回模型。
 - 维护一个紧凑的项目状态 JSON，记录已选择端口、行为选项和最新接受的代码版本。
 
 对于较短的多轮会话，直接携带这些规则文件通常仍在常见模型上下文范围内。

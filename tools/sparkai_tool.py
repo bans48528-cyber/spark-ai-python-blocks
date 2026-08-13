@@ -595,7 +595,7 @@ class PythonGenerator:
             values = [self.port_input(block, name) for name in ("PORT_ONE", "PORT_TWO")]
             values.extend(self.input_value(block, name) for name in ("LEFT", "RIGHT", "KP", "KD"))
             return [f"{indent}_motor.mov_find_line_run({', '.join(values)})"]
-        if opcode == "set_color_threshold_value":
+        if opcode in {"sensing_set_color_threshold_value", "set_color_threshold_value"}:
             port = self.port_input(block, "PORT")
             threshold = self.input_value(block, "THRESHOLD", "500")
             return [f"{indent}_color.set_color_threshold_value({port}, {threshold})"]
@@ -812,15 +812,6 @@ def validate_project(project: ProjectData) -> list[str]:
         if isinstance(target, dict)
         for block_id, block in get_blocks(target).items()
     }
-    if any(
-        block.get("opcode") == "set_color_threshold_value"
-        for block in all_blocks.values()
-        if isinstance(block, dict)
-    ):
-        issues.append(
-            "project contains set_color_threshold_value; Spark AI 1.1.9 can "
-            "save this threshold block but may fail to reload the project"
-        )
     required_extensions = project_extensions_for_blocks(all_blocks)
     if required_extensions and project.data.get("extensions") != required_extensions:
         issues.append(

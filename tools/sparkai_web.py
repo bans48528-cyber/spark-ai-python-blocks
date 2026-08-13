@@ -8,6 +8,7 @@ import html
 import json
 import os
 import sys
+from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -15,11 +16,11 @@ from urllib.parse import parse_qs, urlparse
 try:
     from .sparkai_ai import SparkAIAIError, generate_with_deepseek
     from .sparkai_clipboard import ClipboardFragment, compile_clipboard
-    from .sparkai_reverse import MappingReport, ReverseCodeError, compile_project, unique_output_path
+    from .sparkai_reverse import MappingReport, ReverseCodeError, compile_project
 except ImportError:
     from sparkai_ai import SparkAIAIError, generate_with_deepseek
     from sparkai_clipboard import ClipboardFragment, compile_clipboard
-    from sparkai_reverse import MappingReport, ReverseCodeError, compile_project, unique_output_path
+    from sparkai_reverse import MappingReport, ReverseCodeError, compile_project
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,6 +61,25 @@ def default_api_key_source() -> str:
 
 def get_default_api_key() -> str:
     return read_env_file_value(LOCAL_ENV_FILE, "DEEPSEEK_API_KEY") or os.environ.get("DEEPSEEK_API_KEY", "")
+
+
+def default_web_output_name() -> str:
+    return datetime.now().strftime("%d-%H%M") + ".sparkai"
+
+
+def unique_web_output_path(directory: Path) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    candidate = directory / default_web_output_name()
+    if not candidate.exists():
+        return candidate
+    stem = candidate.stem
+    suffix = candidate.suffix
+    index = 1
+    while True:
+        candidate = directory / f"{stem}-{index:02d}{suffix}"
+        if not candidate.exists():
+            return candidate
+        index += 1
 
 
 def resolve_api_key(request_api_key: str) -> str:
@@ -124,6 +144,7 @@ def page(
     source: str = "",
     fragments: list[ClipboardFragment] | None = None,
     mapping_report: MappingReport | None = None,
+    download_filename: str = "",
 ) -> bytes:
     notice = ""
     if message:
@@ -189,9 +210,14 @@ def page(
     .chat-message.ai {{ border-color: var(--accent); }}
     .chat-row {{ display: grid; gap: 8px; }}
     .chat-input {{ min-height: 110px; font-family: inherit; }}
-    .chat-actions {{ display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }}
-    .chat-buttons {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }}
+    .chat-actions {{ display: grid; grid-template-columns: 1fr; gap: 8px; }}
+    .chat-buttons {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; }}
+    .chat-buttons button {{ min-width: 0; padding-inline: 8px; white-space: nowrap; }}
     .key-grid {{ display: grid; grid-template-columns: 1fr; gap: 8px; }}
+    .key-settings {{ border: 1px solid var(--line); padding: 10px 12px; background: #fbfcfb; }}
+    .key-settings summary {{ cursor: pointer; color: var(--accent-dark); font-weight: 650; }}
+    .key-settings[open] summary {{ margin-bottom: 10px; }}
+    .key-warning {{ color: #805b1e; }}
     .hint {{ margin: 0; color: var(--muted); font-size: 13px; }}
     .status {{ min-height: 1.5em; color: var(--accent-dark); }}
     .status.error {{ color: var(--danger); white-space: pre-wrap; }}
@@ -214,12 +240,13 @@ def page(
       header p {{ margin-top: 6px; }}
       .layout {{ grid-template-columns: 1fr; }}
       .filename {{ max-width: none; margin-bottom: 12px; }}
-      .actions button, .chat-actions button {{ width: 100%; }}
+      .actions button {{ width: 100%; }}
+      .chat-buttons button {{ width: 100%; padding-inline: 4px; font-size: 13px; }}
       textarea {{ min-height: 46vh; }}
     }}
   </style>
 </head>
-<body>
+<body data-download-filename="{html.escape(download_filename, quote=True)}">
   <main>
     <header>
       <div>
@@ -233,11 +260,15 @@ def page(
       <section class="chat-panel">
         <h2>AI 对话</h2>
         <div id="chat-log" class="chat-log" aria-live="polite"></div>
-        <div class="key-grid">
-          <label for="api-key">DeepSeek Key（可选）</label>
-          <input id="api-key" type="password" autocomplete="off" placeholder="已配置默认 Key 时可留空">
-          <p class="hint">Key 只发送给本机 127.0.0.1 服务，不会保存到文件。</p>
-        </div>
+        <details class="key-settings">
+          <summary>DeepSeek Key 设置（可选）</summary>
+          <div class="key-grid">
+            <label for="api-key">DeepSeek Key</label>
+            <input id="api-key" type="password" autocomplete="off" placeholder="已配置默认 Key 时可留空">
+            <p class="hint">填写后会保存在本机浏览器中，后续请求将优先使用此 Key；清空后恢复使用默认 Key。</p>
+            <p class="hint key-warning">风险提示：Key 会以浏览器本地存储方式保存。请勿在公共电脑或共享浏览器中保存，泄露后请及时到服务商处撤销并更换。</p>
+          </div>
+        </details>
         <div class="chat-row">
           <label for="chat-input">需求描述</label>
           <textarea id="chat-input" class="chat-input" placeholder="例如：生成一个巡线小车，左右电机接 E/F，左右灰度接 A/B，按 A 口触碰传感器停止，停止后蜂鸣器响一声。"></textarea>
@@ -262,7 +293,7 @@ def page(
           <div class="bottom">
             <div class="filename">
               <label for="filename">文件名（可选）</label>
-              <input id="filename" name="filename" value="" placeholder="自动生成时间文件名.sparkai" maxlength="80">
+              <input id="filename" name="filename" value="" placeholder="默认：日-时分.sparkai，例如 13-1605.sparkai" maxlength="80">
             </div>
             <div class="actions">
               <button type="submit" name="action" value="file">生成积木文件</button>
@@ -283,7 +314,27 @@ def page(
     const apiKeyInput = document.getElementById('api-key');
     const newSession = document.getElementById('new-session');
     const CHAT_STORAGE_KEY = 'sparkai.chatHistory.v1';
+    const API_KEY_STORAGE_KEY = 'sparkai.apiKey.v1';
     let chatHistory = loadChatHistory();
+
+    function loadApiKey() {{
+      try {{
+        return window.localStorage.getItem(API_KEY_STORAGE_KEY) || '';
+      }} catch (error) {{
+        return '';
+      }}
+    }}
+
+    function saveApiKey() {{
+      try {{
+        if (apiKeyInput.value.trim()) {{
+          window.localStorage.setItem(API_KEY_STORAGE_KEY, apiKeyInput.value.trim());
+        }} else {{
+          window.localStorage.removeItem(API_KEY_STORAGE_KEY);
+        }}
+      }} catch (error) {{
+      }}
+    }}
 
     function loadChatHistory() {{
       try {{
@@ -328,8 +379,18 @@ def page(
     }}
 
     function buildSummary() {{
-      return chatHistory.map((item) => item.role + ': ' + item.text).join('\\n');
+      return chatHistory
+        .slice(-8)
+        .map((item) => {{
+          const text = item.text.length > 800 ? item.text.slice(0, 800) + '\\n[truncated]' : item.text;
+          return item.role + ': ' + text;
+        }})
+        .join('\\n\\n');
     }}
+
+    apiKeyInput.value = loadApiKey();
+    apiKeyInput.addEventListener('change', saveApiKey);
+    document.querySelector('form[action="/generate"]').addEventListener('submit', saveApiKey);
 
     async function writeClipboard(text) {{
       if (navigator.clipboard && navigator.clipboard.writeText) {{
@@ -345,6 +406,15 @@ def page(
       const copied = document.execCommand('copy');
       fallback.remove();
       if (!copied) throw new Error('clipboard write failed');
+    }}
+
+    function triggerDownload(filename) {{
+      const link = document.createElement('a');
+      link.href = '/generated/' + encodeURIComponent(filename);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     }}
 
     document.querySelectorAll('[data-copy-target]').forEach((button) => {{
@@ -383,6 +453,7 @@ def page(
     sendChat.addEventListener('click', async () => {{
       const request = chatInput.value.trim();
       if (!request) return;
+      saveApiKey();
       const conversationSummary = buildSummary();
       addMessage('user', request);
       chatInput.value = '';
@@ -430,6 +501,11 @@ def page(
         sendChat.disabled = false;
       }}
     }});
+
+    const downloadFilename = document.body.dataset.downloadFilename;
+    if (downloadFilename) {{
+      window.setTimeout(() => triggerDownload(downloadFilename), 0);
+    }}
   </script>
 </body>
 </html>"""
@@ -548,11 +624,11 @@ class SparkAIHandler(SimpleHTTPRequestHandler):
                     filename += ".sparkai"
                 output = OUTPUT_DIR / filename
             else:
-                output = unique_output_path(OUTPUT_DIR)
+                output = unique_web_output_path(OUTPUT_DIR)
             result = compile_project(source, TEMPLATE, output)
             link = f"/generated/{result.path.name}"
             message = (
-                f'生成成功：<a href="{html.escape(link)}">下载 {html.escape(result.path.name)}</a>'
+                f'生成成功，正在下载：{html.escape(result.path.name)}'
                 f"（{result.block_count} 个积木节点）"
             )
             self.respond_html(
@@ -560,6 +636,7 @@ class SparkAIHandler(SimpleHTTPRequestHandler):
                     message=message,
                     source=source,
                     mapping_report=result.mapping_report,
+                    download_filename=result.path.name,
                 )
             )
         except (OSError, ValueError) as exc:

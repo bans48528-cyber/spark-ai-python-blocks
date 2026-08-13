@@ -73,7 +73,7 @@ _key.key_remote("right", "y")
 - 默认反射光/灰度传感器接 A/B，除非用户给出其它端口。
 - 使用 `_motor.mov_find_line_run(...)`。
 - 巡线运行积木的传感器值输入槽应放 `_color.lux(0)`、`_color.lux(1)` 或类似数值报告器。
-- 不要生成 `_color.set_color_threshold_value(...)`，这是 Spark AI 1.1.9 的已知加载失败积木。
+- 用户明确要求设置灰度阈值时，可以生成 `_color.set_color_threshold_value(port, threshold)`。
 - 除非用户要求手动控制或停止按键，否则不要加入手柄或主机按键。
 
 避障小车：

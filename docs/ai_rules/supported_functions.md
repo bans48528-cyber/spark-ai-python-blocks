@@ -40,9 +40,10 @@ _motor.reset_relative_position(port)
 ```python
 _motor.mov_find_line_init()
 _motor.mov_find_line_run(left_sensor_value, right_sensor_value, left_power, right_power, kp, kd)
+_color.set_color_threshold_value(port, threshold)
 ```
 
-不要使用 `_color.set_color_threshold_value(...)`。在 Spark AI 1.1.9 中，包含灰度传感器阈值设置积木的项目可以保存，但重新加载会失败。巡线逻辑应使用 `_color.lux(port)` 和 `_color.lux_state(port)`。
+`_color.set_color_threshold_value(port, threshold)` 可用于灰度传感器阈值设置，例如 A 口阈值 1000 写作 `_color.set_color_threshold_value(0, 1000)`。
 
 ## 传感器与主机输入
 

@@ -25,6 +25,9 @@ class QuietSparkAIHandler(sparkai_web.SparkAIHandler):
 
 
 class WebConfigTests(unittest.TestCase):
+    def test_default_web_output_name_uses_day_hour_minute(self):
+        self.assertRegex(sparkai_web.default_web_output_name(), r"^\d{2}-\d{4}\.sparkai$")
+
     def test_read_env_file_value_supports_comments_and_quotes(self):
         with tempfile.TemporaryDirectory() as directory:
             env_file = Path(directory) / ".env"
@@ -169,6 +172,33 @@ class WebServerCase(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn("新建会话", body)
         self.assertIn("CHAT_STORAGE_KEY", body)
+        self.assertIn('summary>DeepSeek Key 设置（可选）</summary>', body)
+        self.assertIn("API_KEY_STORAGE_KEY", body)
+        self.assertIn("风险提示：Key 会以浏览器本地存储方式保存", body)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", body)
+        self.assertIn("清空后恢复使用默认 Key", body)
+        self.assertIn("triggerDownload", body)
+        self.assertNotIn('>下载 <', body)
+
+    def test_generate_file_uses_short_web_name_and_auto_download_notice(self):
+        form = urllib.parse.urlencode({
+            "python": "_motor.mov_stop()\n",
+            "action": "file",
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            self.base_url + "/generate",
+            data=form,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+
+        with urllib.request.urlopen(request, timeout=5) as response:
+            body = response.read().decode("utf-8")
+
+        self.assertEqual(response.status, 200)
+        self.assertRegex(body, r"生成成功，正在下载：\d{2}-\d{4}(?:-\d{2})?\.sparkai")
+        self.assertIn("data-download-filename=", body)
+        self.assertIn("triggerDownload", body)
 
 
 if __name__ == "__main__":

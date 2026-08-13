@@ -141,6 +141,15 @@ _motor.mov_power(+Power_, +Power_)
         self.assertIn(">Power<", xml)
         self.assertIn("clipboard-variable-", xml)
 
+    def test_clipboard_includes_threshold_setting_block(self):
+        result = compile_clipboard("_color.set_color_threshold_value(0, 1000)\n")
+        xml = result.fragments[0].xml
+        self.assertIn('type="sensing_set_color_threshold_value"', xml)
+        self.assertIn('type="sensing_menu"', xml)
+        self.assertIn('name="SENSING_MENU">A</', xml)
+        self.assertIn('name="THRESHOLD"><shadow type="math_number"', xml)
+        self.assertIn('name="NUM">1000</', xml)
+
     def test_comprehensive_1_1_9_sample_clipboard_fragments_compile(self):
         result = compile_clipboard(ALL_BLOCKS_1_1_9)
         self.assertEqual([fragment.kind for fragment in result.fragments], ["custom", "main"])
@@ -158,7 +167,6 @@ _motor.mov_power(+Power_, +Power_)
         main_xml = result.fragments[1].xml
         self.assertIn('type="procedures_definition"', definition_xml)
         self.assertIn('type="procedures_call"', main_xml)
-        self.assertNotIn('type="set_color_threshold_value"', main_xml)
         self.assertIn('type="combined_linepatrol_ltr"', main_xml)
         self.assertIn('type="sensing_isHandling"', main_xml)
         self.assertIn('type="sensing_Handling"', main_xml)
