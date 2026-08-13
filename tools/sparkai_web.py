@@ -8,25 +8,31 @@ import html
 import json
 import os
 import sys
+import threading
+import webbrowser
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from typing import Iterable
+from urllib.parse import parse_qs, unquote, urlparse
 
 try:
     from .sparkai_ai import SparkAIAIError, generate_with_deepseek
     from .sparkai_clipboard import ClipboardFragment, compile_clipboard
     from .sparkai_reverse import MappingReport, ReverseCodeError, compile_project
+    from .sparkai_runtime import application_root, resource_root
 except ImportError:
     from sparkai_ai import SparkAIAIError, generate_with_deepseek
     from sparkai_clipboard import ClipboardFragment, compile_clipboard
     from sparkai_reverse import MappingReport, ReverseCodeError, compile_project
+    from sparkai_runtime import application_root, resource_root
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = resource_root()
+APPLICATION_ROOT = application_root()
 TEMPLATE = ROOT / "templates" / "base.sparkai"
-OUTPUT_DIR = ROOT / "generated"
-LOCAL_ENV_FILE = ROOT / ".env"
+OUTPUT_DIR = APPLICATION_ROOT / "generated"
+LOCAL_ENV_FILE = APPLICATION_ROOT / ".env"
 
 
 def read_env_file_value(path: Path, name: str) -> str:
@@ -525,6 +531,11 @@ class SparkAIHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
+    def log_message(self, format: str, *args: object) -> None:
+        """Avoid writes to missing console streams in windowed release builds."""
+
+        return
+
     def respond_html(self, content: bytes, status: int = 200) -> None:
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -546,6 +557,20 @@ class SparkAIHandler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in {"/", "/index.html", "/generate"}:
             self.respond_html(page())
+            return
+        if path.startswith("/generated/"):
+            filename = Path(unquote(path.removeprefix("/generated/"))).name
+            output = OUTPUT_DIR / filename
+            if not output.is_file():
+                self.send_error(404)
+                return
+            content = output.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
             return
         super().do_GET()
 
@@ -643,18 +668,22 @@ class SparkAIHandler(SimpleHTTPRequestHandler):
             self.respond_html(page(message=str(exc), error=True, source=source), 400)
 
 
-def main() -> int:
+def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
-    args = parser.parse_args()
+    parser.add_argument("--open-browser", action="store_true")
+    args = parser.parse_args(argv)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     try:
         server = ThreadingHTTPServer((args.host, args.port), SparkAIHandler)
     except OSError as exc:
         print(f"ERROR: cannot start server on {args.host}:{args.port}: {exc}", file=sys.stderr)
         return 2
-    print(f"Spark AI generator: http://{args.host}:{args.port}/")
+    url = f"http://{args.host}:{args.port}/generate"
+    print(f"Spark AI generator: {url}")
+    if args.open_browser:
+        threading.Timer(0.2, webbrowser.open, args=(url,)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

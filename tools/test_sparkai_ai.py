@@ -9,12 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 from sparkai_ai import (  # noqa: E402
+    AIJSONError,
     SparkAIAIError,
     build_generation_user_prompt,
     build_system_prompt,
     compact_conversation_summary,
     generate_with_deepseek,
     parse_ai_json,
+    request_ai_response,
     validate_sparkai_python,
 )
 
@@ -80,8 +82,30 @@ class SparkAITests(unittest.TestCase):
         self.assertEqual(response.hardware_config["left_motor"], "E")
 
     def test_parse_rejects_invalid_json(self):
-        with self.assertRaises(SparkAIAIError):
-            parse_ai_json("```json\n{}\n```")
+        with self.assertRaises(AIJSONError):
+            parse_ai_json("{\"type\": \"code\"")
+
+    def test_parse_accepts_json_code_fence(self):
+        response = parse_ai_json('```json\n{"type":"question","message":"请确认","questions":[]}\n```')
+        self.assertEqual(response.type, "question")
+
+    def test_request_ai_response_retries_incomplete_json(self):
+        incomplete = '{"type":"code","message":"未完成'
+        complete = json.dumps({
+            "type": "question",
+            "message": "请确认电机端口",
+            "python": "",
+            "questions": ["电机接哪个端口？"],
+        })
+        with patch("sparkai_ai.deepseek_chat_completion", side_effect=[incomplete, complete]) as call:
+            response = request_ai_response(
+                api_key="test-key",
+                messages=[{"role": "user", "content": "生成程序"}],
+                model="test-model",
+                base_url="https://example.invalid",
+            )
+        self.assertEqual(response.type, "question")
+        self.assertEqual(call.call_count, 2)
 
     def test_validate_sparkai_python_returns_error_text(self):
         self.assertEqual(validate_sparkai_python("_motor.mov_stop()\n"), "")

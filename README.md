@@ -124,6 +124,23 @@ DEEPSEEK_API_KEY=your-api-key
 
 ## Command Line Usage
 
+## Windows Release Folder
+
+To build a Windows release folder from this repository, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_release.ps1
+```
+
+The result is `release\SparkAI-Generator\`. Send that whole folder, or
+`release\SparkAI-Generator.zip`, to users. They only need to double-click
+`SparkAI-Generator.exe`; Python and dependencies are included. The release
+includes the repository `.env` as its default AI key. Keep the release folder
+private because anyone with it can read that key.
+
+Spark AI software is still required to open and run the generated `.sparkai`
+projects.
+
 Generate a `.sparkai` file from an example:
 
 ```powershell

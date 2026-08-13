@@ -15,11 +15,13 @@ from typing import Any, Iterable
 
 try:
     from .sparkai_reverse import ReverseCodeError, SparkAIReverseCompiler
+    from .sparkai_runtime import resource_root
 except ImportError:
     from sparkai_reverse import ReverseCodeError, SparkAIReverseCompiler
+    from sparkai_runtime import resource_root
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = resource_root()
 AI_RULE_FILES = (
     ROOT / "docs" / "ai_rules" / "ai_generation_rules.md",
     ROOT / "docs" / "ai_rules" / "conversation_state.md",
@@ -31,10 +33,16 @@ AI_RULE_FILES = (
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-v4-flash"
 MAX_CONVERSATION_SUMMARY_CHARS = 8_000
+DEFAULT_MAX_TOKENS = 8_192
+MAX_INVALID_JSON_RETRIES = 1
 
 
 class SparkAIAIError(ValueError):
     """User-facing AI integration error."""
+
+
+class AIJSONError(SparkAIAIError):
+    """The model returned malformed or incomplete JSON."""
 
 
 @dataclass(frozen=True)
@@ -148,7 +156,7 @@ def deepseek_chat_completion(
     model: str = DEFAULT_MODEL,
     base_url: str = DEFAULT_BASE_URL,
     timeout: int = 60,
-    max_tokens: int = 4096,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> str:
     if not api_key:
         raise SparkAIAIError("DEEPSEEK_API_KEY is not set")
@@ -187,10 +195,17 @@ def deepseek_chat_completion(
 
 
 def parse_ai_json(content: str) -> AIResponse:
+    content = content.strip()
+    if content.startswith("```"):
+        lines = content.splitlines()
+        if lines and lines[0].strip().lower() in {"```", "```json"}:
+            content = "\n".join(lines[1:])
+            if content.rstrip().endswith("```"):
+                content = content.rstrip()[:-3].rstrip()
     try:
         data = json.loads(content)
     except json.JSONDecodeError as exc:
-        raise SparkAIAIError(f"AI response is not valid JSON: {exc}") from exc
+        raise AIJSONError(f"AI response is not valid JSON: {exc}") from exc
     if not isinstance(data, dict):
         raise SparkAIAIError("AI response JSON must be an object")
 
@@ -236,6 +251,47 @@ def validate_sparkai_python(source: str) -> str:
     return ""
 
 
+def request_ai_response(
+    *,
+    api_key: str,
+    messages: list[dict[str, str]],
+    model: str,
+    base_url: str,
+) -> AIResponse:
+    """Request JSON and retry once when the model returns truncated/malformed JSON."""
+
+    last_error: AIJSONError | None = None
+    for attempt in range(MAX_INVALID_JSON_RETRIES + 1):
+        request_messages = messages
+        if attempt:
+            request_messages = [
+                *messages,
+                {
+                    "role": "user",
+                    "content": (
+                        "Your previous response was incomplete or invalid JSON. "
+                        "Return the complete JSON object now, with no markdown fences "
+                        "and no extra text."
+                    ),
+                },
+            ]
+        try:
+            return parse_ai_json(
+                deepseek_chat_completion(
+                    api_key=api_key,
+                    messages=request_messages,
+                    model=model,
+                    base_url=base_url,
+                )
+            )
+        except AIJSONError as exc:
+            last_error = exc
+    assert last_error is not None
+    raise SparkAIAIError(
+        "AI 返回的 JSON 不完整，自动重试后仍未成功。请重新发送本次请求。"
+    ) from last_error
+
+
 def generate_with_deepseek(
     user_request: str,
     *,
@@ -258,13 +314,11 @@ def generate_with_deepseek(
             ),
         },
     ]
-    response = parse_ai_json(
-        deepseek_chat_completion(
-            api_key=api_key,
-            messages=messages,
-            model=model,
-            base_url=base_url,
-        )
+    response = request_ai_response(
+        api_key=api_key,
+        messages=messages,
+        model=model,
+        base_url=base_url,
     )
     if response.type != "code" or not response.python:
         return GenerationResult(response=response)
@@ -285,13 +339,11 @@ def generate_with_deepseek(
                 ),
             },
         ]
-        response = parse_ai_json(
-            deepseek_chat_completion(
-                api_key=api_key,
-                messages=repair_messages,
-                model=model,
-                base_url=base_url,
-            )
+        response = request_ai_response(
+            api_key=api_key,
+            messages=repair_messages,
+            model=model,
+            base_url=base_url,
         )
         if response.type != "code" or not response.python:
             return GenerationResult(

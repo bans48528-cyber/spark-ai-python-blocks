@@ -11,6 +11,12 @@ htmlcov/
 generated/
 outputs/
 work/
+build/
+dist/
+release/
+debug-build/
+debug-dist/
+*.spec
 *.log
 
 .venv/

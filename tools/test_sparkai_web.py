@@ -200,6 +200,19 @@ class WebServerCase(unittest.TestCase):
         self.assertIn("data-download-filename=", body)
         self.assertIn("triggerDownload", body)
 
+    def test_generated_file_is_downloaded_from_output_directory(self):
+        output = sparkai_web.OUTPUT_DIR / "web-download-test.sparkai"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"sparkai-test")
+        self.addCleanup(output.unlink, missing_ok=True)
+
+        with urllib.request.urlopen(self.base_url + "/generated/web-download-test.sparkai", timeout=5) as response:
+            content = response.read()
+            disposition = response.headers["Content-Disposition"]
+
+        self.assertEqual(content, b"sparkai-test")
+        self.assertEqual(disposition, 'attachment; filename="web-download-test.sparkai"')
+
 
 if __name__ == "__main__":
     unittest.main()
